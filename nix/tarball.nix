@@ -17,15 +17,15 @@
 stdenv.mkDerivation rec {
   name = "ATS2-Postiats-${version}.tgz";
 
-  buildInputs = [ autoconf automake gmp ];
+  buildInputs = [ autoconf automake gmp ats ];
 
   src = builtins.filterSource (path: type:
     (toString path) != (toString ../.git)
   ) ../.;
 
-  ATSHOME = "${ats}/lib/ats-anairiats-${ats.version}";
+  #ATSHOME = "${ats}/lib/ats-anairiats-${ats.version}";
 
-  ATSHOMERELOC = "ATS-${ats.version}";
+  #ATSHOMERELOC = "ATS-${ats.version}";
 
   configurePhase = ''
     patchShebangs doc/DISTRIB/ATS-Postiats/autogen.sh
