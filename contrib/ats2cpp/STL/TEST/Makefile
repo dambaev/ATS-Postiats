@@ -22,7 +22,7 @@ MYCFLAGS += -D_ATS_CCOMP_PRELUDE_USER_='"pats_ats2cpp_prelude.h"'
 #
 # MYCFLAGS += -D_ATSTYPE_VAR_SIZE_=1024
 #
-MYCFLAGS += -I${PATSHOME}/contrib/ats2cpp
+MYCFLAGS += -I../..
 MYCFLAGS += -I${PATSHOME}/contrib/ats2cpp/H
 MYCFLAGS += -I${PATSHOME}/contrib/ats2cpp/ccomp
 #

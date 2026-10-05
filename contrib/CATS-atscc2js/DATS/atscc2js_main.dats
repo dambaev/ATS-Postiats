@@ -53,6 +53,17 @@ CATSPARSEMIT_targetloc
 "{$CATSPARSEMIT}/SATS/catsparse_parsing.sats"
 //
 (* ****** ****** *)
+(* ****** ****** *)
+//
+datatype
+symbol =
+SYMBOL of (string(*name*), int(*stamp*))
+//
+(* ****** ****** *)
+
+assume symbol_type = symbol
+
+(* ****** ****** *)
 //
 val () =
 catsparse_all_dynload() where

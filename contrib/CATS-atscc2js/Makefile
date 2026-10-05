@@ -34,12 +34,13 @@ SOURCES_DATS :=
 SOURCES_DATS += DATS/atscc2js_main.dats
 SOURCES_DATS += DATS/atscc2js_emit.dats
 SOURCES_DATS += DATS/atscc2js_emit2.dats
+SOURCES_DATS += $(CATSPARSEMIT)/catsparse_all.dats
 #
 SOURCES_SATS :=
 SOURCES_SATS += $(CATSPARSEMIT)/SATS/catsparse.sats
 #
 SOURCES_CATS :=
-SOURCES_CATS += $(CATSPARSEMIT)/CATS/catsparse_all_dats.c
+#SOURCES_CATS += $(CATSPARSEMIT)/CATS/catsparse_all_dats.c
 #
 ######
 #

@@ -15,6 +15,9 @@ ATS_MAINATSFLAG 1
 ATS_DYNLOADNAME "catsparse_all_dynload"
 //
 (* ****** ****** *)
+#include "share/atspre_staload.hats"
+
+staload "prelude/DATS/unsafe.dats"
 
 local #include "./DATS/catsparse_mylib.dats" in (*nothing*) end
 
