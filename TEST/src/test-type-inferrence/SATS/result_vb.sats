@@ -62,7 +62,7 @@ fn
   clo_bind_result_vt
   {fe:eff}
   ( value: Result_vt( INV(fail), INV(a))
-  , next: (INV(a))-<cloref,fe> Result_vt( fail, b)
+  , next: (INV(a))-<cloref,fe> Result_vt( INV(fail), INV(b))
   ):<fe>
   Result_vt( INV(fail), INV(b))
 

@@ -11,15 +11,21 @@ infixl 5 >>=
 
 fn
   test(): void = {
-  val () = ( case value of
-           | ~Fail_vt( reason ) => () where { prval _ = $showtype reason}
+  val () = ( case $showtype value of
+           | ~Fail_vt( reason ) => () where { val v = $showtype reason}
            | ~Succ_vt( v ) => assertloc( v.0 = 1 && v.1 = 2 && v.2 = 3)
            )
 } where {
   vtypedef value_t = Result_vt( int, @(int, int, int) )
   val value:value_t =
-    pure 1
-    >>= ( lam v =<cloref1> pure( @( $showtype v, 2) ) )
+    ( let
+        val v1 =
+      ( pure 1
+        >>= ( lam v =<cloref1> pure( @( $showtype v, 2) ) )
+      )
+      in $showtype v1
+      end
+    )
     >>= ( lam v =<cloref1> pure( @( v1, v2, 3) ) where { val @(v1, v2) = $showtype v})
 }
 
