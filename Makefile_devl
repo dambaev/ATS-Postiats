@@ -36,6 +36,7 @@ all:: atslib_update
 #
 #all:: bin_atspkgreloc
 #
+test: ; make -C TEST all
 ######
 #
 src_depend: ; touch src/.depend
