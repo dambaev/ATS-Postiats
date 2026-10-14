@@ -53,8 +53,18 @@ ATS_OBJS= $(ATS_SATS:.sats=_sats.o) $(ATS_DATS:.dats=_dats.o)
 
 
 test: \
+		test-result_vb-dummy \
+		test-type-inferrence-workaround \
 		test-type-inferrence
 
+
+test-result_vb-dummy: $(ATS_OBJS)
+	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
+	./$@
+
+test-type-inferrence-workaround: $(ATS_OBJS)
+	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
+	./$@
 
 test-type-inferrence: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
@@ -66,8 +76,8 @@ test-type-inferrence: $(ATS_OBJS)
 #
 # You may find these rules useful
 #
-%_sats.o: %.sats ; $(ATSCC) $(ATSCCFLAGS) -c -o $@ $< 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/' 
-%_dats.o: %.dats ; $(ATSCC) $(ATSCCFLAGS) -c -o $@ $< 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/' 
+%_sats.o: %.sats ; $(ATSCC) $(ATSCCFLAGS) -c -o $@ $< 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
+%_dats.o: %.dats ; $(ATSCC) $(ATSCCFLAGS) -c -o $@ $< 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 #
 ######
 #
