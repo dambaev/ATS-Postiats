@@ -634,6 +634,38 @@ end // end of [local]
 
 (* ****** ****** *)
 
+// elaborating the definition of a [val] declaration: when the
+// declaration carries no [withtype] annotation but the pattern is
+// annotated (the [T] in [val x:T = e], carried by the [P2Tann] node),
+// the definition is wrapped in a [D2Eann_type] ascription node so it
+// elaborates exactly as [(e):T]: the existentials created inside the
+// definition get pinned by the annotation before the definition's
+// consumers are elaborated, and the definition's type becomes the
+// ascribed one
+//
+fn
+  d2exp_elaborate_or_pin_with_pattern_annotation
+  ( d2e_definition: d2exp
+  , p2t_pattern: p2at
+  ) : d3exp =
+  ( case+ p2t_pattern.p2at_node of
+  | P2Tann (_(*p2t_pattern_inner*), s2e_pattern_annotation) =>
+      // the pattern is annotated: wrap the definition in a type-ascription
+      // node so it elaborates exactly as [(e):T]
+      d2exp_trup
+        ( d2exp_ann_type
+            ( d2e_definition.d2exp_loc
+            , d2e_definition
+            , s2e_pattern_annotation
+            )
+        )
+
+  | _ (* the pattern carries no annotation: elaborate with no expected type *) =>
+      d2exp_trup (d2e_definition)
+  )
+//
+(* ****** ****** *)
+
 implement
 v2aldec_tr
   (knd, d2c) = let
@@ -657,7 +689,8 @@ val d3e_def = let
   val opt = d2c.v2aldec_ann // [withtype] annotation
 in
   case+ opt of
-  | Some s2e => d2exp_trdn (d2e, s2e) | None () => d2exp_trup (d2e)
+  | Some s2e => d2exp_trdn (d2e, s2e)
+  | None () => d2exp_elaborate_or_pin_with_pattern_annotation (d2e, p2t_val)
 end : d3exp // end of [val]
 //
 val () = the_effenv_pop_if (pfopt | isprf)
