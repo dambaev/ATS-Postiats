@@ -2091,6 +2091,9 @@ case+ key of
     val () = debug_flag_set(1)
     val () = $GLOB.the_DEBUGATS_dbgflag_set(1)
   } // end of [--debug2] // debugging info in generated code
+| "--chainlam" => {
+    val () = $GLOB.the_CHAINLAM_flag_set(1)
+  } // end of [--chainlam] // existential instantiation for inline unannotated lam args
 //
 | "--depgen" => (state.depgen := 1)
 | "--taggen" => (state.taggen := 1)

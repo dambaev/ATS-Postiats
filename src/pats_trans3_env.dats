@@ -490,6 +490,46 @@ end // end of [s2exp_unimet_instantiate_all]
 (* ****** ****** *)
 
 implement
+s2exp_eximet_instantiate_all
+  (s2e0, locarg, err) = let
+// [--chainlam]: the existential counterpart of s2exp_unimet_instantiate_all:
+// the quantified variables of the callee's type become solvable einvars
+// instead of rigid variables, so that the argument types (and in particular
+// the domain of an inline unannotated lambda argument) can be inferred
+// from the actual arguments at the application site
+//
+  val (s2e, s2ps_fst) =
+    s2exp_exi_instantiate_all(s2e0, locarg, err)
+  val s2f = s2exp2hnf (s2e)
+  val s2e = s2hnf2exp (s2f)
+in
+//
+case s2e.s2exp_node of
+| S2Emetfun
+    (opt, s2es_met, s2e) => (
+  case+ opt of
+  | Some stamp => let
+      val () = s2exp_termet_instantiate (locarg, stamp, s2es_met)
+      val (s2e, s2ps_rest) = s2exp_exi_instantiate_all (s2e, locarg, err)
+      val s2ps_all = (
+        case+ s2ps_rest of
+        | list_vt_cons _ => let
+            prval () = fold@(s2ps_rest) in list_vt_append(s2ps_fst, s2ps_rest)
+          end // end of [list_vt_cons]
+        | ~list_vt_nil () => s2ps_fst
+      ) : s2explst_vt // end of [val]
+    in
+      (s2e, s2ps_all)
+    end // end of [S2Emetfun]
+  | None () => (s2e, s2ps_fst)
+  ) // end of [S2Emetfun]
+| _ => (s2e, s2ps_fst)
+//
+end // end of [s2exp_eximet_instantiate_all]
+
+(* ****** ****** *)
+
+implement
 s2exp_exi_instantiate_sexparg
   (s2e0, s2a, err) = let
 //
@@ -2239,5 +2279,43 @@ in
 end // end of [the_trans3_finget_constraint]
 
 (* ****** ****** *)
+
+(* ****** ****** *)
+//
+// pending hoisted-lambda registry: a list of (temp d2var, lam d2exp) pairs
+//
+local
+
+typedef
+chainlam_pair = @(d2var, d2exp)
+
+val the_chainlam_pending = ref_make_elt<List(chainlam_pair)>(list_nil())
+
+in (* in-of-local *)
+
+implement
+chain_lam_pending_register
+  (d2v, d2e_lam) =
+  !the_chainlam_pending := list_cons((d2v, d2e_lam), !the_chainlam_pending)
+// end of [chain_lam_pending_register]
+
+implement
+chain_lam_pending_lookup
+  (d2v) = let
+  fun
+  auxscan
+    (d2v: d2var, xs: List@(d2var, d2exp)): Option(d2exp) =
+    (case+ xs of
+     | list_cons ((d2v_key, d2e_lam), xs) =>
+         if eq_d2var_d2var (d2v, d2v_key)
+           then Some d2e_lam
+           else auxscan (d2v, xs)
+     | list_nil () => None ()
+    )
+  in
+    auxscan (d2v, !the_chainlam_pending)
+  end // end of [chain_lam_pending_lookup]
+
+end // end of [local]
 
 (* end of [pats_trans3_env.dats] *)

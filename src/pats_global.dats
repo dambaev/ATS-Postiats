@@ -265,6 +265,21 @@ end // end of [local]
 
 local
 //
+val rchainlamflag = ref<int>(0)
+//
+in (*in-of-local*)
+//
+implement
+the_CHAINLAM_flag_get() = !rchainlamflag
+implement
+the_CHAINLAM_flag_set(flag) = !rchainlamflag := flag
+//
+end // end of [local]
+
+(* ****** ****** *)
+
+local
+//
 val rdbgline = ref<int>(0)
 //
 in (*in-of-local*)

@@ -98,6 +98,7 @@ staload SOL = "./pats_staexp2_solve.sats"
 
 staload "./pats_trans3.sats"
 staload "./pats_trans3_env.sats"
+staload GLOB = "./pats_global.sats" // for the [--chainlam] flag
 
 (* ****** ****** *)
 
@@ -651,6 +652,116 @@ d2explst_trup
 
 (* ****** ****** *)
 
+//
+// [--chainlam]: an inline unannotated lambda argument is elaborated
+// against the callee's instantiated type; if the quantified variables
+// of that type are instantiated rigidly (the default), the lambda's
+// parameters get pinned to rigid variables and cannot be inferred.
+// When such an argument is present, the quantified variables are
+// instantiated existentially so that the actual arguments solve them.
+//
+fn
+chainlam_p2at_is_unannotated
+  (p2t: p2at): bool =
+  ( case+ p2t.p2at_node of
+  | P2Tvar _ (* plain parameter variable *) => true
+  | P2Tany () (* wildcard parameter *) => true
+  | _ (* annotated or structured parameter *) => false
+  )
+//
+fun
+chainlam_p2atlst_is_all_unannotated
+  (p2ts: p2atlst): bool =
+  ( case+ p2ts of
+  | list_cons (p2t, p2ts) =>
+      if chainlam_p2at_is_unannotated (p2t)
+        then chainlam_p2atlst_is_all_unannotated (p2ts)
+        else false
+  | list_nil () => true
+  )
+//
+fun
+chainlam_d2exp_is_inline_unannotated_lam
+  (d2e: d2exp): bool =
+  ( case+ d2e.d2exp_node of
+  | D2Elam_dyn (_(*lin*), _(*npf*), p2ts_arg, _(*body*)) =>
+      chainlam_p2atlst_is_all_unannotated (p2ts_arg)
+  | D2Elaminit_dyn (_(*lin*), _(*npf*), p2ts_arg, _(*body*)) =>
+      chainlam_p2atlst_is_all_unannotated (p2ts_arg)
+  | D2Esing (d2e_inner) =>
+      chainlam_d2exp_is_inline_unannotated_lam (d2e_inner)
+  | D2Eann_funclo (d2e_inner, _(*funclo*)) =>
+      chainlam_d2exp_is_inline_unannotated_lam (d2e_inner)
+  | _ (* not a dynamic abstraction *) => false
+  )
+//
+fun
+chainlam_d23explst_has_inline_unannotated_lam
+  {n:nat} .<n>.
+(
+  d23es: !list_vt (d23exp, n)
+) : bool = let
+//
+fn
+fopr
+(
+  d23e: !d23exp, found: &int
+) : void = (
+//
+case+ d23e of
+| D23Ed2exp d2e => let
+    val () =
+      if chainlam_d2exp_is_inline_unannotated_lam (d2e)
+        then found := 1
+      // end of [if]
+    prval () = fold@(d23e)
+  in
+    // nothing
+  end // end of [D23Ed2exp]
+| D23Ed3exp _ => let
+    prval () = fold@(d23e)
+  in
+    // nothing
+  end // end of [D23Ed3exp]
+//
+) (* end of [fopr] *)
+//
+fun
+aux
+  {n:nat} .<n>.
+(
+  d23es: !list_vt (d23exp, n), found: &int
+) : void = let
+in
+//
+case+ d23es of
+| list_vt_nil
+    ((*void*)) => let
+    prval () = fold@(d23es)
+  in
+    // nothing
+  end // end of [list_vt_nil]
+| list_vt_cons
+    (!p_d23e, !p_d23es) => let
+    val () = fopr (!p_d23e, found)
+    val () = aux (!p_d23es, found)
+    prval ((*folded*)) = fold@(d23es)
+  in
+    // nothing
+  end // end of [list_vt_cons]
+//
+end // end of [aux]
+//
+var found: int = 0
+val () = aux (d23es, found)
+//
+in
+  (found > 0)
+end // end of [chainlam_d23explst_has_inline_unannotated_lam]
+//
+
+(* ****** ****** *)
+
 fun
 d2explst_trup_arg
 (
@@ -672,11 +783,15 @@ case+ d2es of
       val () = println! ("d2explst_trup_arg: isval = ", isval)
 *)
     in
-      if isval
+      if (isval ||
+          (($GLOB.the_CHAINLAM_flag_get ()) > 0 &&
+           chainlam_d2exp_is_inline_unannotated_lam (d2e)))
         then D23Ed2exp d2e
-        else let
-          val d3e = d2exp_trup (d2e) in D23Ed3exp d3e
-        end // end of [else]
+        else (
+          let
+            val d3e = d2exp_trup (d2e) in D23Ed3exp d3e
+          end // end of [else]
+        )
       // end of [if]
     end : d23exp // end of [val]
     val d23es = d2explst_trup_arg (d2es)
@@ -1339,7 +1454,24 @@ d23exp_trup_app23
 *)
   var err: int = 0
   val locsarg = $LOC.location_rightmost (loc_fun)
-  val (s2e_fun, s2ps) = s2exp_unimet_instantiate_all (s2e_fun, locsarg, err)
+  val
+    chainlam_flag_on = ($GLOB.the_CHAINLAM_flag_get ()): int
+  val
+    chainlam_lam_arg =
+      chainlam_d23explst_has_inline_unannotated_lam (d23es_arg)
+  val (s2e_fun, s2ps) = (
+    if (chainlam_flag_on > 0 && chainlam_lam_arg)
+      then (
+    // [--chainlam]: instantiate existentially: the quantified variables
+    // of the callee's type become solvable einvars, so the domain of an
+    // inline unannotated lambda argument is inferred from the actual
+    // arguments at the application site
+        s2exp_eximet_instantiate_all (s2e_fun, locsarg, err)
+      )
+      else (
+        s2exp_unimet_instantiate_all (s2e_fun, locsarg, err)
+      )
+  ) : (s2exp, s2explst_vt) // end of [val]
   val () = trans3_env_add_proplst_vt (locsarg, s2ps)
 (*
   val () = begin
@@ -1382,7 +1514,7 @@ case+ s2e_fun.s2exp_node of
     end // end of [let] // end of [val]
 //
     val loc_app = $LOC.location_combine (loc_fun, locarg)
-    val s2es_fun_arg = 
+    val s2es_fun_arg =
       s2fun_opninv_and_add (locarg, s2es_fun_arg, s2e_fun_res)
     val d3es_arg = d23explst_trdn (locarg, d23es_arg, s2es_fun_arg)
 //

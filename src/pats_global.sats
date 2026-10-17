@@ -117,6 +117,16 @@ fun the_DEBUGATS_dbgflag_set(flag: int): void
 fun the_DEBUGATS_dbgline_get(): int
 fun the_DEBUGATS_dbgline_set(flag: int): void
 //
+// chain-lam flag: when set, an application that receives an inline
+// unannotated lambda argument instantiates the quantified variables of
+// the callee's type existentially (instead of rigidly), and the lambda
+// argument is elaborated DOWN against the callee's domain at the
+// application site, so its parameters are inferred rather than pinned
+// to rigid variables (default OFF)
+//
+fun the_CHAINLAM_flag_get(): int
+fun the_CHAINLAM_flag_set(flag: int): void
+//
 (* ****** ****** *)
 //
 // HX-2015-04-26:

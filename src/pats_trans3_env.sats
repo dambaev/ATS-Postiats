@@ -255,6 +255,11 @@ s2exp_unimet_instantiate_all
 // HX: instantiating universal quantifiers and term. metrics
   (s2e: s2exp, locarg: loc_t, err: &int): (s2exp, s2explst_vt)
 //
+fun
+s2exp_eximet_instantiate_all
+// [--chainlam]: instantiating existential quantifiers and term. metrics
+  (s2e: s2exp, locarg: loc_t, err: &int): (s2exp, s2explst_vt)
+//
 (* ****** ****** *)
 //
 fun
@@ -306,6 +311,12 @@ fun trans3_env_push (): (trans3_env_push_v | void)
 
 fun trans3_env_add_svar (s2v: s2var): void
 fun trans3_env_add_svarlst (s2vs: s2varlst): void
+//
+// pending hoisted-lambda registry: keyed by the temp [d2var] the lambda is
+// bound to; used for the deferred elaboration of chain lambdas
+//
+fun chain_lam_pending_register (d2v: d2var, d2e_lam: d2exp): void
+fun chain_lam_pending_lookup (d2v: d2var): Option(d2exp)
 
 fun trans3_env_add_squa (s2q: s2qua): void
 fun trans3_env_add_squalst (s2qs: s2qualst): void
