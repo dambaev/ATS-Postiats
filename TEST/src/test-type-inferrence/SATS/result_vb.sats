@@ -152,21 +152,6 @@ fn
 
 fn
   {a:viewt@ype+}
-  {env:viewt@ype+}
-  {b:viewt@ype+}
-  {fail:viewt@ype+}
-  withExcept
-  {fe:eff}
-  ( value: @( INV(env), INV(a))
-  , fail: (INV(a))-<> INV(fail)
-  , next: ( INV(a) )-<fe> Result_vt( INV(a) , INV(b))
-  ):<fe>
-  Result_vt( @( INV(env), INV(fail))
-           , @( INV(env), INV(b))
-           )
-
-fn
-  {a:viewt@ype+}
   {b:viewt@ype+}
   {fail:viewt@ype+}
   withExcept0

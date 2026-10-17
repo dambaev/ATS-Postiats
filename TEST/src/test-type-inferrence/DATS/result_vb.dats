@@ -59,15 +59,6 @@ implement
   val ( env, some) = value
 }
 
-implement {a}{env}{fail}{b}withExcept{fe}( arg, fail_func, next ) =
-( case ret of
-| ~Fail_vt( some) => Fail_vt( @( env, fail_func( some)))
-| ~Succ_vt( some) => Succ_vt( @( env, some))
-) where {
-    val ( env, value) = arg
-    val ret = next( value)
-  }
-
 implement
   {a}
   {b}
