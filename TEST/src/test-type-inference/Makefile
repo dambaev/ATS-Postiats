@@ -54,109 +54,109 @@ ATS_OBJS= $(ATS_SATS:.sats=_sats.o) $(ATS_DATS:.dats=_dats.o)
 
 test: \
 		test-result_vb-dummy \
-		test-type-inferrence-workaround \
-		test-type-inferrence2 \
-		test-type-inferrence3 \
-		test-type-inferrence4 \
-		test-type-inferrence5 \
-		test-type-inferrence6 \
-		test-type-inferrence7 \
-		test-type-inferrence8 \
-		test-type-inferrence9 \
-		test-type-inferrence10 \
-		test-type-inferrence11 \
-		test-type-inferrence12 \
-		test-type-inferrence13 \
-		test-type-inferrence14 \
-		test-type-inferrence15 \
-		test-type-inferrence16 \
-		test-type-inferrence17 \
-		test-type-inferrence18 \
-		test-type-inferrence19 \
-		test-type-inferrence
+		test-type-inference-workaround \
+		test-type-inference2 \
+		test-type-inference3 \
+		test-type-inference4 \
+		test-type-inference5 \
+		test-type-inference6 \
+		test-type-inference7 \
+		test-type-inference8 \
+		test-type-inference9 \
+		test-type-inference10 \
+		test-type-inference11 \
+		test-type-inference12 \
+		test-type-inference13 \
+		test-type-inference14 \
+		test-type-inference15 \
+		test-type-inference16 \
+		test-type-inference17 \
+		test-type-inference18 \
+		test-type-inference19 \
+		test-type-inference
 
 
 test-result_vb-dummy: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence-workaround: $(ATS_OBJS)
+test-type-inference-workaround: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence2: $(ATS_OBJS)
+test-type-inference2: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence3: $(ATS_OBJS)
+test-type-inference3: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence4: $(ATS_OBJS)
+test-type-inference4: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence5: $(ATS_OBJS)
+test-type-inference5: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence6: $(ATS_OBJS)
+test-type-inference6: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence7: $(ATS_OBJS)
+test-type-inference7: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence8: $(ATS_OBJS)
+test-type-inference8: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence9: $(ATS_OBJS)
+test-type-inference9: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence10: $(ATS_OBJS)
+test-type-inference10: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence11: $(ATS_OBJS)
+test-type-inference11: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence12: $(ATS_OBJS)
+test-type-inference12: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence13: $(ATS_OBJS)
+test-type-inference13: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence14: $(ATS_OBJS)
+test-type-inference14: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence15: $(ATS_OBJS)
+test-type-inference15: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence16: $(ATS_OBJS)
+test-type-inference16: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence17: $(ATS_OBJS)
+test-type-inference17: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence18: $(ATS_OBJS)
+test-type-inference18: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence19: $(ATS_OBJS)
+test-type-inference19: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
-test-type-inferrence: $(ATS_OBJS)
+test-type-inference: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 

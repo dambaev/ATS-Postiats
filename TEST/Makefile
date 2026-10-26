@@ -42,10 +42,10 @@ cleanall::
 
 
 test: \
-		test-type-inferrence
+		test-type-inference
 
 
-test-type-inferrence:
+test-type-inference:
 	make -C src/$@ all
 
 
