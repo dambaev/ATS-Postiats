@@ -126,6 +126,10 @@ fun the_DEBUGATS_dbgline_set(flag: int): void
 //
 fun the_CHAINLAM_flag_get(): int
 fun the_CHAINLAM_flag_set(flag: int): void
+// [--chainlam]: set while UP-elaborating the body of an inline unannotated
+// lambda argument (nested template applications must get einvars there)
+fun the_CHAINLAM_bodyflag_get(): int
+fun the_CHAINLAM_bodyflag_set(flag: int): void
 //
 (* ****** ****** *)
 //

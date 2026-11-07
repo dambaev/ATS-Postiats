@@ -73,6 +73,8 @@ staload "./pats_dynexp3.sats"
 staload "./pats_trans3.sats"
 staload "./pats_trans3_env.sats"
 
+staload GLOB = "./pats_global.sats"
+
 (* ****** ****** *)
 
 #define l2l list_of_list_vt
@@ -136,6 +138,41 @@ end // end of [aritest_d2exparglst_s2exp]
 end // end of [local]
 
 (* ****** ****** *)
+
+// [--chainlam]: peek for an inline unannotated lambda among d2 args
+fun
+d2exp_is_inline_lam (d2e: d2exp) : bool =
+(
+case+ d2e.d2exp_node of
+| D2Elam_dyn _ => true
+| D2Elaminit_dyn _ => true
+| D2Eann_funclo (d2e, _) => d2exp_is_inline_lam d2e
+| D2Eann_seff (d2e, _) => d2exp_is_inline_lam d2e
+| D2Esing d2e => d2exp_is_inline_lam d2e
+| _ => false
+)
+//
+fun
+d2explst_has_inline_lam (d2es: d2explst) : bool =
+(
+case+ d2es of
+| list_nil () => false
+| list_cons (d2e, d2es) => d2exp_is_inline_lam d2e || d2explst_has_inline_lam d2es
+)
+//
+fun
+d2exparglst_has_inline_lam (d2as: d2exparglst) : bool =
+(
+case+ d2as of
+| list_nil () => false
+| list_cons (d2a, d2as) => (
+    case+ d2a of
+    | D2EXPARGdyn (_, _, d2es) =>
+        d2explst_has_inline_lam d2es || d2exparglst_has_inline_lam d2as
+    | _ => d2exparglst_has_inline_lam d2as
+  )
+)
+//
 
 fun
 d2exp_trup_item
@@ -210,6 +247,33 @@ case+ d2i of
   end // end of [_]
 //
 end // end of [d3exp_trup_item]
+
+(* ****** ****** *)
+//
+// [--chainlam]: like [d3exp_trup_item] but re-elaborates an item for a
+// template constant with existential (einvar) instantiation of its
+// quantifiers; all other items are re-elaborated as usual
+//
+fun d3exp_trup_item_exi
+  (d3e0: d3exp): d3exp = let
+//
+val loc0 = d3e0.d3exp_loc
+val-D3Eitem (d2i, t2mas) = d3e0.d3exp_node
+val isnil = list_is_nil (t2mas)
+//
+in
+//
+case+ d2i of
+| D2ITMcst d2c =>
+  ( if isnil then
+      d2exp_trup_cst_exi (loc0, d2c)
+    else
+      d2exp_trup_tmpcst (loc0, d2c, t2mas)
+    // end of [if]
+  ) // end of [D2ITMcst]
+| _ => d3exp_trup_item (d3e0)
+//
+end // end of [d3exp_trup_item_exi]
 
 (* ****** ****** *)
 //
@@ -323,9 +387,26 @@ case+ d3as of
       val s2e_fun = d3e_fun.d3exp_type
       val () = d3explst_open_and_add (d3es_arg)
       var err: int = 0
+      // [--chainlam]: when an argument is an inline unannotated lambda,
+      // instantiate the callee's quantified template vars existentially
+      // (einvars) so the lambda's parameters can be solved against the
+      // callee's domain as it is elaborated DOWN. The decision is carried
+      // by the type itself: s2exp_trup_item wraps a chain candidate's
+      // declared quantifiers with S2Eexi, so no argument peek is needed
+      // here (the args are already UP-elaborated at this point).
+      val chainlam_hn = s2exp_hnfize (s2e_fun)
+      val chainlam_exi_callee =
+        ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+        (case+ chainlam_hn.s2exp_node of
+         | S2Eexi _ => true | _ => false)
+      val chainlam_lam_arg = chainlam_exi_callee
       val (s2e_fun, s2ps) =
-        s2exp_unimet_instantiate_all (s2e_fun, locarg, err)
-      // HX: [err] is not used
+        ( if chainlam_lam_arg && ($GLOB.the_CHAINLAM_flag_get ()) <> 0 then (
+          s2exp_eximet_instantiate_all (s2e_fun, locarg, err)
+        ) else (
+          s2exp_unimet_instantiate_all (s2e_fun, locarg, err)
+        ) // end of [if]
+        ): (s2exp, s2explst_vt)
       val () = trans3_env_add_proplst_vt (loc_fun, s2ps)
       val d3e_fun = d3exp_app_unista (loc0, s2e_fun, d3e_fun)
       val-S2Efun (
@@ -409,6 +490,9 @@ case+ d2pis of
         auxsel_arity (locsym, d2pis_new, d2piss, t2mas, d2args)
       end // end of [D2ITMsymdef]
     | _ => let
+        // [--chainlam]: the S2Eexi item-wrap path proved harmful (the
+        // wrapper leaked into result types); the existential decision is
+        // now taken at the tmpsym re-elaboration site (see [d3exp_trup_item_exi])
         val d3e = d2exp_trup_item(locsym, d2i, t2mas)
         val test = aritest_d2exparglst_s2exp(d2args, d3e.d3exp_type)
         val d3pis = auxsel_arity(locsym, d2pis, d2piss, t2mas, d2args)
@@ -538,7 +622,27 @@ case+ d2as of
           end (* D2EXPARGsta *)
         | D2EXPARGdyn
             (npf, locarg, d2es) => let
+            // [--chainlam]: UP-elaborate arguments of an application carrying
+            // an inline unannotated lambda in existential body mode: nested
+            // template applications elaborated inside such a lambda body get
+            // solvable einvars instead of rigid template variables
+            val chainlam_mode =
+              ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+              d2explst_has_inline_lam (d2es)
+            val chainlam_mode0 =
+              ( if chainlam_mode then (
+                  let
+                    val flag0 = $GLOB.the_CHAINLAM_bodyflag_get ()
+                    val () = $GLOB.the_CHAINLAM_bodyflag_set (1)
+                  in
+                    flag0
+                  end // end of [let]
+                ) // end of [then]
+                else $GLOB.the_CHAINLAM_bodyflag_get ()
+                // end of [if]
+              ) : int
             val d3es = d2explst_trup (d2es)
+            val () = $GLOB.the_CHAINLAM_bodyflag_set (chainlam_mode0)
             val s2kes = list_map_fun<d3exp><s2kexp>
               (d3es, lam d3e =<1> s2kexp_make_s2exp(d3e.d3exp_type))
             val xs = auxsel_skexplst(xys, $UN.castvwtp1{s2kexplst}(s2kes))
@@ -750,10 +854,46 @@ case+ d3pis of
     d3pi, list_nil()
   ) => let
     val d3e_fun = d3pitm_get_dexp(d3pi)
-    val d3e_fun = d3exp_trup_item(d3e_fun)
+    // [--chainlam]: when an argument is an inline unannotated lambda,
+    // re-elaborate the candidate with existential instantiation so that
+    // the quantifiers survive as solvable einvars into the DOWN phase;
+    // likewise inside the UP-elaborated body of such a lambda (nested
+    // template applications there must get einvars as well)
+    val chainlam_exi_body =
+      ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+      ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+    val d3e_fun =
+      ( if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+             (d2exparglst_has_inline_lam (d2as) || chainlam_exi_body) then
+          d3exp_trup_item_exi (d3e_fun)
+        else
+          d3exp_trup_item (d3e_fun)
+        // end of [if]
+      ) : d3exp
+    // [--chainlam]: the remaining d2 args are UP-elaborated HERE (the
+    // single-candidate path of [auxsel_arglst] leaves them in xyz.2);
+    // set the body mode around that elaboration so that nested template
+    // applications inside an inline unannotated lambda get einvars
     val d3e_fun = d3exp_trup_applst(d2e0, d3e_fun, xyz.1)
+    val chainlam_rest =
+      ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+      d2exparglst_has_inline_lam (xyz.2)
+    val chainlam_rest0 =
+      ( if chainlam_rest then (
+          let
+            val flag0 = $GLOB.the_CHAINLAM_bodyflag_get ()
+            val () = $GLOB.the_CHAINLAM_bodyflag_set (1)
+          in
+            flag0
+          end // end of [let]
+        ) // end of [then]
+        else $GLOB.the_CHAINLAM_bodyflag_get ()
+        // end of [if]
+      ) : int
+    val d3e_res = d23exp_trup_applst(d2e0, d3e_fun, xyz.2)
+    val () = $GLOB.the_CHAINLAM_bodyflag_set (chainlam_rest0)
   in
-    d23exp_trup_applst(d2e0, d3e_fun, xyz.2)
+    d3e_res
   end // end of [list_sing]
 //
 | list_cons

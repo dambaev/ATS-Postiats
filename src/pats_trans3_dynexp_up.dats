@@ -759,6 +759,35 @@ in
   (found > 0)
 end // end of [chainlam_d23explst_has_inline_unannotated_lam]
 //
+fun
+chainlam_s2exp_has_einvar
+  (s2e: s2exp): bool = let
+//
+fun
+auxlst
+  (s2es: s2explst): bool =
+  ( case+ s2es of
+  | list_cons (s2e, s2es) =>
+      if chainlam_s2exp_has_einvar (s2e)
+        then true
+        else auxlst (s2es)
+  | list_nil () => false
+  )
+//
+in
+  case+ s2e.s2exp_node of
+  | S2Einvar _ (* an existential variable: solvable *) => true
+  | S2Eapp (s2e_fun, s2es) =>
+      if chainlam_s2exp_has_einvar (s2e_fun)
+        then true
+        else auxlst (s2es)
+  | S2Efun (_(*fc*), _(*lin*), _(*s2fe*), _(*npf*), s2es, s2e_res) =>
+      if chainlam_s2exp_has_einvar (s2e_res)
+        then true
+        else auxlst (s2es)
+  | _ (* no einvar in this node *) => false
+end // end of [chainlam_s2exp_has_einvar]
+//
 
 (* ****** ****** *)
 
@@ -876,7 +905,8 @@ fn d23explst_trdn
 ) : d3explst = let
 //
 fun aux (
-  d23es: d23explst, s2es: s2explst, err: &int
+  locarg: loc_t
+, d23es: d23explst, s2es: s2explst, err: &int
 ) : d3explst = let
 in
 //
@@ -907,7 +937,19 @@ case+ d23es of
           | ~D23Ed2exp(d2e) => d2exp_trdn(d2e, s2e)
           | ~D23Ed3exp(d3e) => d3exp_trdn(d3e, s2e)
         ) : d3exp // end of [val]
-        val d3es = aux(d23es, s2es, err)
+        // [--chainlam]: solve the elaborated argument against its formal
+        // so that the einvars of the callee's instantiated type get tied
+        // by the actual argument before the following arguments (in
+        // particular, an inline unannotated lambda argument) are elaborated
+        val () =
+          if (($GLOB.the_CHAINLAM_flag_get ()) > 0 && chainlam_s2exp_has_einvar (s2e)) then let
+            var serr_solve: int = 0
+          in
+            $SOL.s2exp_tyleq_solve_err (locarg, d3e.d3exp_type, s2e, serr_solve)
+          end // end of [let]
+          else ()
+          // end of [if]
+        val d3es = aux (locarg, d23es, s2es, err)
       in
         list_cons(d3e, d3es)
       end // end of [list_cons]
@@ -915,7 +957,7 @@ case+ d23es of
 end // end of [aux]
 //
 var serr: int = 0
-val d3es = aux(d23es, s2es, serr)
+val d3es = aux (locarg, d23es, s2es, serr)
 //
 val () =
 if
@@ -1047,8 +1089,15 @@ case+ s2qs of
     var err: int = 0
     val locsarg =
       $LOC.location_rightmost (loc0)
+    // [--chainlam]: in body mode every template instantiation must produce
+    // solvable einvars: rigid quantifier dups created under an einvar's scope
+    // permanently record that scope and then veto solving it (skolem-escape)
     val (s2e_tmp, s2ess) =
-      s2exp_tmp_instantiate_rest (s2e0, locsarg, s2qs, err)
+      (if $GLOB.the_CHAINLAM_flag_get () <> 0 &&
+          $GLOB.the_CHAINLAM_bodyflag_get () <> 0
+        then s2exp_tmp_instantiate_rest_exi (s2e0, locsarg, s2qs, err)
+        else s2exp_tmp_instantiate_rest (s2e0, locsarg, s2qs, err)
+       : (s2exp, t2mpmarglst))
   in
     d3exp_tmpvar (loc0, s2e_tmp, d2v, s2ess)
   end // end of [list_cons]
@@ -1081,13 +1130,45 @@ case+ s2qs of
     var err: int = 0
     val locsarg =
       $LOC.location_rightmost (loc0)
+    // [--chainlam]: see the comment at [d2exp_trup_var_nonmut]
     val (s2e_tmp, s2ess) =
-      s2exp_tmp_instantiate_rest (s2e, locsarg, s2qs, err)
+      (if $GLOB.the_CHAINLAM_flag_get () <> 0 &&
+          $GLOB.the_CHAINLAM_bodyflag_get () <> 0
+        then s2exp_tmp_instantiate_rest_exi (s2e, locsarg, s2qs, err)
+        else s2exp_tmp_instantiate_rest (s2e, locsarg, s2qs, err)
+       : (s2exp, t2mpmarglst))
   in
     d3exp_tmpcst (loc0, s2e_tmp, d2c, s2ess)
   end // end of [list_cons]
 //
 end // end of [d2cst_trup_cst]
+
+(* ****** ****** *)
+//
+// [--chainlam]: existential variant of [d2exp_trup_cst]: the quantifiers of
+// a template cst are instantiated to solvable einvars (see the comment on
+// [s2exp_tmp_instantiate_rest_exi])
+//
+implement
+d2exp_trup_cst_exi
+  (loc0, d2c) = let
+  val s2e = d2cst_get_type (d2c)
+  val s2qs = d2cst_get_decarg (d2c)
+in
+//
+case+ s2qs of
+| list_nil () => d3exp_cst (loc0, s2e, d2c)
+| list_cons _ => let
+    var err: int = 0
+    val locsarg =
+      $LOC.location_rightmost (loc0)
+    val (s2e_tmp, s2ess) =
+      s2exp_tmp_instantiate_rest_exi (s2e, locsarg, s2qs, err)
+  in
+    d3exp_tmpcst (loc0, s2e_tmp, d2c, s2ess)
+  end // end of [list_cons]
+//
+end // end of [d2cst_trup_cst_exi]
 
 (* ****** ****** *)
 

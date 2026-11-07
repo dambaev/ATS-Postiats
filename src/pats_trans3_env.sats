@@ -278,6 +278,12 @@ s2exp_tmp_instantiate_rest
 ) : (s2exp(*res*), t2mpmarglst) = "ext#patsopt_s2exp_tmp_instantiate_rest"
 //
 fun
+s2exp_tmp_instantiate_rest_exi
+(
+  s2f: s2exp, locarg: loc_t, s2qs: s2qualst, nerr: &int
+) : (s2exp(*res*), t2mpmarglst) = "ext#patsopt_s2exp_tmp_instantiate_rest_exi"
+//
+fun
 s2exp_tmp_instantiate_tmpmarglst
 (
   s2f: s2exp

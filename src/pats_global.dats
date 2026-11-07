@@ -266,6 +266,7 @@ end // end of [local]
 local
 //
 val rchainlamflag = ref<int>(0)
+val rchainlambodyflag = ref<int>(0)
 //
 in (*in-of-local*)
 //
@@ -273,6 +274,10 @@ implement
 the_CHAINLAM_flag_get() = !rchainlamflag
 implement
 the_CHAINLAM_flag_set(flag) = !rchainlamflag := flag
+implement
+the_CHAINLAM_bodyflag_get() = !rchainlambodyflag
+implement
+the_CHAINLAM_bodyflag_set(flag) = !rchainlambodyflag := flag
 //
 end // end of [local]
 

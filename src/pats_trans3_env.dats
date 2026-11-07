@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -60,6 +60,7 @@ macdef intinfset_listize = $INTINF.intinfset_listize
 (* ****** ****** *)
 
 staload "./pats_basics.sats"
+staload GLOB = "./pats_global.sats"
 
 (* ****** ****** *)
 
@@ -84,6 +85,8 @@ staload TRENV2 = "./pats_trans2_env.sats"
 (* ****** ****** *)
 
 staload SOL = "./pats_staexp2_solve.sats"
+
+staload SYM = "./pats_symbol.sats"
 
 (* ****** ****** *)
 
@@ -260,6 +263,44 @@ end // end of [stasub_make_svarlst]
 
 (* ****** ****** *)
 
+// [--chainlam]: effect-sorted variables are not inferable and must not flow
+// into the effect signature of the enclosing function: they stay rigid when
+// quantifiers are instantiated to einvars
+//
+fun
+chainlam_is_eff_srt (s2t: s2rt) : bool =
+( case+ s2t of
+  | S2RTbas s2tb =>
+      (case+ s2tb of
+       | S2RTBASpre (sym) => $SYM.eq_symbol_symbol (sym, $SYM.symbol_EFF)
+       | _ => false)
+  | _ => false
+)
+//
+// [--chainlam]: bind quantified variables to solvable einvars (effect-sorted
+// variables stay rigid); used by the existential instantiation and by the
+// existential openers under chain-lambda body mode
+//
+fun
+stasub_s2varlst_bind_einvars
+(
+  sub: &stasub, locarg: location, s2vs: s2varlst
+) : void =
+( case+ s2vs of
+  | list_cons (s2v, s2vs) => let
+      val s2e0 = s2exp_Var_make_var (locarg, s2v)
+      val () =
+        (if chainlam_is_eff_srt (s2var_get_srt s2v)
+           then stasub_add (sub, s2v, s2e0)
+           else stasub_add (sub, s2v, s2exp_invar (s2e0))
+          : void)
+    in
+      stasub_s2varlst_bind_einvars (sub, locarg, s2vs)
+    end // end of [list_cons]
+  | list_nil () => ()
+)
+//
+
 local
 
 fun
@@ -267,7 +308,7 @@ stasub_s2varlst_instantiate_none
 (
   sub: &stasub
 , locarg: location, s2vs: s2varlst
-, err: &int // HX: [err] is not used
+, err: &int // [err] is not used
 ) : void = let
 //
 macdef loop = stasub_s2varlst_instantiate_none
@@ -396,6 +437,37 @@ case+ s2vs of
 | list_nil () => list_vt_reverse (res)
 //
 end // end of [stasub_s2varlst_instcollect]
+//
+// [--chainlam]: existential counterpart of [stasub_s2varlst_instcollect]:
+// each quantified variable is bound to a solvable einvar (except for
+// effect-sorted variables, which stay rigid as before)
+//
+fun
+stasub_s2varlst_instcollect_exi
+(
+  sub: &stasub
+, locarg: location, s2vs: s2varlst, res: s2explst_vt
+) : s2explst_vt = let
+//
+macdef loop = stasub_s2varlst_instcollect_exi
+//
+in
+//
+case+ s2vs of
+| list_cons (s2v, s2vs) => let
+    val s2e0 =
+      s2exp_Var_make_var (locarg, s2v)
+    val s2e =
+      (if chainlam_is_eff_srt (s2var_get_srt s2v)
+         then s2e0 else s2exp_invar (s2e0))
+    val () = stasub_add (sub, s2v, s2e)
+    val res = list_vt_cons (s2e, res)
+  in
+    loop (sub, locarg, s2vs, res)
+  end
+| list_nil () => list_vt_reverse (res)
+//
+end // end of [stasub_s2varlst_instcollect_exi]
 
 in (* in of [local] *)
 
@@ -498,10 +570,78 @@ s2exp_eximet_instantiate_all
 // the domain of an inline unannotated lambda argument) can be inferred
 // from the actual arguments at the application site
 //
+fun
+s2exp_exiuni_einvar_instantiate_all
+  (s2e0: s2exp, locarg: location, err: &int) : (s2exp, s2explst_vt) = let // [err] is not used
+//
+fun loop (
+  sub: &stasub
+, s2f: s2hnf
+, s2ps_res: &s2explst_vt
+, err: &int // [err] is not used
+) :<cloref1> s2exp = let
+  val s2e = s2hnf2exp (s2f)
+  var s2vs: s2varlst
+  and s2ps: s2explst
+  var s2e1: s2exp // scope
+  val
+    ans =
+      if uns2exp_exiuni (1, s2e, s2vs, s2ps, s2e1)
+        then true
+        else uns2exp_exiuni (0, s2e, s2vs, s2ps, s2e1)
+      // end of [if]
+in
+case+ ans of
+| true => let
+    // HX: each quantified variable is bound to an einvar
+    // so that the dependent types solver can solve it;
+    // [--chainlam]: except effect-sorted variables, which stay rigid
+    // (see [stasub_s2varlst_bind_einvars])
+    val () = stasub_s2varlst_bind_einvars (sub, locarg, s2vs)
+    val s2ps = s2explst_subst_vt (sub, s2ps)
+    val () = s2ps_res := list_vt_reverse_append (s2ps, s2ps_res)
+    val s2f1 = s2exp2hnf (s2e1)
+  in
+    loop (sub, s2f1, s2ps_res, err)
+  end
+| false => s2exp_subst (sub, s2e)
+//
+end // end of [loop]
+//
+var sub
+  : stasub = stasub_make_nil ()
+val s2f0 = s2exp2hnf (s2e0)
+var s2ps_res: s2explst_vt = list_vt_nil ()
+val s2e_res = loop (sub, s2f0, s2ps_res, err)
+val () = stasub_free (sub)
+val s2ps_res = list_vt_reverse (s2ps_res)
+//
+in
+  (s2e_res, s2ps_res)
+end // end of [s2exp_exiuni_einvar_instantiate_all]
+//
   val (s2e, s2ps_fst) =
-    s2exp_exi_instantiate_all(s2e0, locarg, err)
+    s2exp_exiuni_einvar_instantiate_all(s2e0, locarg, err)
   val s2f = s2exp2hnf (s2e)
   val s2e = s2hnf2exp (s2f)
+//
+fun
+auxbind_met
+  (sub: &stasub, locarg: location, s2es: s2explst) : void =
+  (case+ s2es of
+  | list_cons (s2e, s2es) => (
+      case+ s2e.s2exp_node of
+      | S2Evar s2v => let
+          val () =
+            stasub_add (sub, s2v, s2exp_invar (s2exp_var s2v))
+        in
+          auxbind_met (sub, locarg, s2es)
+        end
+      | _ (* non-var metric: skip *) => auxbind_met (sub, locarg, s2es)
+    )
+  | list_nil () => ()
+  )
+//
 in
 //
 case s2e.s2exp_node of
@@ -510,7 +650,14 @@ case s2e.s2exp_node of
   case+ opt of
   | Some stamp => let
       val () = s2exp_termet_instantiate (locarg, stamp, s2es_met)
-      val (s2e, s2ps_rest) = s2exp_exi_instantiate_all (s2e, locarg, err)
+      // [--chainlam]: bind the metfun's declared template params to einvars
+      // so that the INV(...) slots of the callee's type become solvable
+      var sub_met : stasub = stasub_make_nil ()
+      val () = auxbind_met (sub_met, locarg, s2es_met)
+      val s2e = s2exp_subst (sub_met, s2e)
+      val () = stasub_free (sub_met)
+      val (s2e, s2ps_rest) =
+        s2exp_exiuni_einvar_instantiate_all (s2e, locarg, err)
       val s2ps_all = (
         case+ s2ps_rest of
         | list_vt_cons _ => let
@@ -768,6 +915,65 @@ in
 end // end of [s2exp_tmp_instantiate_rest]
 
 (* ****** ****** *)
+//
+// [--chainlam]: the existential counterpart of [s2exp_tmp_instantiate_rest]:
+// the remaining (implicit) quantifiers are instantiated to solvable einvars
+// instead of rigid variables
+//
+implement
+s2exp_tmp_instantiate_rest_exi
+  (s2e_tmp, locarg, s2qs, nerr) = let
+//
+fun loop (
+  locarg: location
+, sub: &stasub
+, s2qs: s2qualst
+, t2mas: t2mpmarglst_vt
+, nerr: &int // HX: unused
+) : t2mpmarglst_vt = let
+in
+  case+ s2qs of
+  | list_nil() =>
+      list_vt_reverse (t2mas)
+    // end of [list_nil]
+  | list_cons(s2q, s2qs) => let
+//
+      val
+      s2vs = s2q.s2qua_svs
+      val () =
+      assertloc(list_is_nil(s2q.s2qua_sps))
+//
+      val s2es =
+      stasub_s2varlst_instcollect_exi(sub, locarg, s2vs, list_vt_nil)
+//
+      val t2ma =
+        t2mpmarg_make (locarg, (l2l)s2es)
+      val t2mas = list_vt_cons (t2ma, t2mas)
+//
+    in
+      loop (locarg, sub, s2qs, t2mas, nerr)
+    end // end of [list_cons]
+end // end of [loop]
+//
+var sub
+  : stasub = stasub_make_nil ()
+// end of [var]
+//
+val
+t2mas =
+loop (
+  locarg, sub, s2qs, list_vt_nil, nerr
+) (* end of [val] *)
+//
+val s2e_res = s2exp_subst (sub, s2e_tmp)
+//
+val ((*freed*)) = stasub_free (sub)
+//
+in
+  (s2e_res, (l2l)t2mas)
+end // end of [s2exp_tmp_instantiate_rest_exi]
+
+(* ****** ****** *)
 
 implement
 s2exp_tmp_instantiate_tmpmarglst
@@ -1007,7 +1213,7 @@ of // case+
 | S2Evar(s2v) =>
   if (s2v0 = s2v)
     then true else aux1_s2var(s2v0, s2v)
-  // end of [if]  
+  // end of [if]
 //
 | S2Eapp(s2e, s2es) =>
   if aux1_s2exp(s2v0, s2e)
@@ -1203,7 +1409,7 @@ in
 end // end of [fprint_the_s3itmlstlst]
 
 end // end of [local]
-  
+
 (* ****** ****** *)
 
 implement
@@ -1961,27 +2167,54 @@ end // end of [s2hnf_absuni_and_add]
 
 (* ****** ****** *)
 
+local
+//
+// [--chainlam]: substitution over a linear prop list (the [s2explst_vt]
+// counterpart of [s2explst_subst_vt], whose input is a non-linear list)
+//
+fun
+s2explst_vt_subst
+  (sub: !stasub, s2ps: s2explst_vt): s2explst_vt =
+( case+ s2ps of
+  | ~list_vt_cons (s2e, s2ps) =>
+      list_vt_cons
+        (s2exp_subst (sub, s2e), s2explst_vt_subst (sub, s2ps))
+  | ~list_vt_nil () => list_vt_nil ((*void*))
+)
+//
+in (* in of [local] *)
+
 implement
 s2hnf_opnexi_and_add
   (loc0, s2f0) = let
 //
 val s2e0 = s2hnf2exp (s2f0)
 //
-(*
-val () =
-println!
-  ("s2hnf_opnexi_and_add: before: s2e0 = ", s2e0)
+in
 //
-*)
-val s2es2vss2ps = s2exp_opnexi (s2e0)
-(*
-val () =
-println!
-  ("s2exp_opnexi_and_add: after: s2e0 = ", s2es2vss2ps.0)
+if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+   ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+then let
+  // [--chainlam]: existentials opened while a chain-lambda body is elaborated
+  // must open as solvable einvars: rigid quantifiers get a recorded scope and
+  // then veto unification against einvars created in that scope (escape check)
+  val (s2e_res, s2vs, s2ps) = s2exp_opnexi (s2e0)
+  var sub = stasub_make_nil ()
+  val () =
+    stasub_s2varlst_bind_einvars
+      (sub, loc0, $UN.castvwtp1{s2varlst}(s2vs))
+    // end of [val]
+  val ((*freed*)) = list_vt_free (s2vs)
+  val s2ps = s2explst_vt_subst (sub, s2ps)
+  val s2e_res = s2exp_subst (sub, s2e_res)
+  val () = stasub_free (sub)
+  val ((*added*)) = trans3_env_hypadd_proplst_vt (loc0, s2ps)
+in
+  s2e_res
+end // end of [then]
+else let
 //
-*)
-//
-val s2vs = s2es2vss2ps.1
+val (s2e_res, s2vs, s2ps) = s2exp_opnexi (s2e0)
 //
 val () = let
   val s2vs =
@@ -1997,10 +2230,12 @@ end // end of [val]
 val ((*freed*)) = list_vt_free (s2vs)
 //
 val ((*added*)) =
-  trans3_env_hypadd_proplst_vt (loc0, s2es2vss2ps.2)
+  trans3_env_hypadd_proplst_vt (loc0, s2ps)
 //
 in
-  s2es2vss2ps.0
+  s2e_res
+end // end of [else]
+//
 end // end of [s2hnf_opnexi_and_add]
 
 (* ****** ****** *)
@@ -2011,37 +2246,69 @@ s2hnf_opn1exi_and_add
   val s2e0 = s2hnf2exp (s2f0)
 in
 //
-case+ s2e0.s2exp_node of
-| S2Eexi (
-    s2vs, s2ps, s2e_body
-  ) => let
+if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+   ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+then let
+  // [--chainlam]: open the existential with solvable einvars: see the
+  // comment at [s2hnf_opnexi_and_add]
+  val res =
+  (case+ s2e0.s2exp_node of
+   | S2Eexi (
+       s2vs, s2ps, s2e_body
+     ) => let
+       var sub = stasub_make_nil ()
+       val () =
+         stasub_s2varlst_bind_einvars (sub, loc0, s2vs)
+         // end of [val]
+       val s2ps = s2explst_subst_vt (sub, s2ps)
+       val s2e_body = s2exp_subst (sub, s2e_body)
+       val () = stasub_free (sub)
+       val ((*added*)) = trans3_env_hypadd_proplst_vt (loc0, s2ps)
+     in
+       s2e_body
+     end // end of [S2Eexi]
+   | _ => s2e0)
+  // end of [case+]
+in
+  res
+end // end of [then]
+else let
 //
-    var sub = stasub_make_nil ()
-    val s2vs = stasub_extend_svarlst (sub, s2vs)
-    val s2ps = s2explst_subst_vt (sub, s2ps) // HX: returning a linear list
-    val s2e_body = s2exp_subst (sub, s2e_body)
-    val () = stasub_free (sub)
-//
-    val () = let
-      val s2vs =
-        $UN.castvwtp1 {s2varlst} (s2vs)
-      // end of [val]
-      val s2Vs = the_s2Varset_env_get ()
-      val () = s2varlst_set_sVarset (s2vs, s2Vs)
-      val () = trans3_env_add_svarlst (s2vs)
+val res =
+( case+ s2e0.s2exp_node of
+  | S2Eexi (
+      s2vs, s2ps, s2e_body
+    ) => let
+      var sub = stasub_make_nil ()
+      val s2vs = stasub_extend_svarlst (sub, s2vs)
+      val s2ps = s2explst_subst_vt (sub, s2ps)
+      val s2e_body = s2exp_subst (sub, s2e_body)
+      val () = stasub_free (sub)
+      val () = let
+        val s2vs =
+          $UN.castvwtp1 {s2varlst} (s2vs)
+        // end of [val]
+        val s2Vs = the_s2Varset_env_get ()
+        val () = s2varlst_set_sVarset (s2vs, s2Vs)
+        val () = trans3_env_add_svarlst (s2vs)
+      in
+        // nothing
+      end // end of [val]
+      val () = list_vt_free (s2vs)
+      val () = trans3_env_hypadd_proplst_vt (loc0, s2ps)
     in
-      // nothing
-    end // end of [val]
-    val () = list_vt_free (s2vs)
+      s2e_body
+    end // end of [S2Eexi]
+  | _ => s2e0 // end of [_]
+)
 //
-    val () = trans3_env_hypadd_proplst_vt (loc0, s2ps)
-//
-  in
-    s2e_body
-  end // end of [S2Eexi]
-| _ => s2e0 // end of [_]
+in
+  res
+end // end of [else]
 //
 end // end of [s2hnf_opn1exi_and_add]
+//
+end // end of [local]
 
 (* ****** ****** *)
 

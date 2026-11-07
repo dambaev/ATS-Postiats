@@ -88,6 +88,7 @@ staload SOL = "./pats_staexp2_solve.sats"
 
 staload "./pats_trans3.sats"
 staload "./pats_trans3_env.sats"
+staload GLOB = "./pats_global.sats" // for the [--chainlam] flag
 
 (* ****** ****** *)
 
@@ -233,6 +234,12 @@ of // case+
 | D2Ewhere (d2e, d2cs) =>
     d2exp_trdn_letwhere(d2e0, s2f0, d2cs, d2e)
   // end of [D2Ewhere]
+//
+| D2Eann_funclo (d2e, _(*funclo*)) when (($GLOB.the_CHAINLAM_flag_get ()) > 0) =>
+  // [--chainlam]: the funclo ascription is peeled here so that the
+  // inner lambda is elaborated DOWN against the callee's domain
+    d2exp_trdn (d2e, s2hnf2exp (s2f0))
+  // end of [D2Eann_funclo]
 //
 | D2Eapplst
     (_fun, _arg) => let
@@ -529,7 +536,16 @@ case+ s2e0.s2exp_node of
     val () = the_pfmanenv_add_p3atlst (p3ts_arg)
     val (pflamlp | ()) = the_lamlpenv_push_lam (p3ts_arg)
 //
+    // [--chainlam]: template instantiations under way while the body of a
+    // chain lambda is elaborated must produce einvars (no rigid dups): see
+    // the skolem-escape analysis in AI_CONTEXT_BUGFIX2.md
+    val chainlam_bf0 = $GLOB.the_CHAINLAM_bodyflag_get ()
+    val () =
+      if $GLOB.the_CHAINLAM_flag_get () <> 0
+        then $GLOB.the_CHAINLAM_bodyflag_set (1)
+        else ()
     val d3e_body = d2exp_trdn (d2e_body, s2e_res)
+    val () = $GLOB.the_CHAINLAM_bodyflag_set (chainlam_bf0)
 //
     val () = the_d2varenv_check (loc0)
     val () = if lin > 0 then the_d2varenv_check_llam (loc0)

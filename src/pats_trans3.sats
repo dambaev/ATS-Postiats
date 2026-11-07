@@ -353,6 +353,8 @@ fun d2var_get_type_some
 // end of [d2var_get_type_some]
 
 fun d2exp_trup_cst (loc: loc_t, d2c: d2cst): d3exp
+// [--chainlam]: existential variant (quantifiers -> einvars)
+fun d2exp_trup_cst_exi (loc: loc_t, d2c: d2cst): d3exp
 fun d2exp_trup_var (loc: loc_t, d2v: d2var): d3exp
 fun d2exp_trup_var_mutabl (loc: loc_t, d2v: d2var): d3exp
 fun d2exp_trup_var_nonmut (loc: loc_t, d2v: d2var): d3exp

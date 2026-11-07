@@ -18,7 +18,7 @@ let
 in
 
 stdenv.mkDerivation rec {
-  pname = "ats2-local";
+  pname = "ats2";
   inherit version;
 
   # local repo root (this file lives in nix1/, so ../. is the repo root);
@@ -81,6 +81,8 @@ stdenv.mkDerivation rec {
     for f in AUTHORS COPYING INSTALL VERSION CHANGES-ats2 CHANGES-contrib README README.md; do
       [ -e $f ] && cp $f $libdir/
     done
+    mkdir -p $out
+    ln -s $out/lib/ats2-postiats-$version/bin $out/bin
     runHook postInstall
   '';
 
