@@ -319,6 +319,9 @@ case+ 0 of
     aux0 (n, argv, i+1, res)
   end // end of [_ when ...]
 //
+| _ when (str0="--optflag") =>
+    aux1_opt (n, argv, i+1, res)
+//
 | _ => let
     val res =
       list_vt_cons{ca}(CA_CCOMPitm(str0), res)
@@ -349,6 +352,41 @@ in
 end // end of [aux1_atsccomp]
 
 (* ****** ****** *)
+
+and
+aux1_opt
+  {n:int}
+  {i:nat | i <= n}
+  .<3*(n-i)+0>.
+(
+  n: int n
+, argv: !argv(n)
+, i: int i
+, res: commarglst_vt
+) : commarglst_vt = let
+  val opt = argv_getopt_at (n, argv, i)
+  val res = list_vt_cons{ca}(CA_patsopt (opt), res)
+//
+val is2arg =
+  if issome (opt) then
+    let
+      val str = unsome (opt)
+    in
+      str = "-o" || str = "--output"
+    end
+  else false // patsopt's 2-argument options
+//
+in
+  if is2arg && i+1 < n then (
+  // the option's value is forwarded as a second patsopt item
+    let
+      val val1 = argv_getopt_at (n, argv, i+1)
+      val res = list_vt_cons{ca}(CA_patsopt (val1), res)
+    in
+      if i+2 < n then aux0 (n, argv, i+2, res) else res
+    end
+  ) else if i < n then aux0 (n, argv, i+1, res) else res
+end // end of [aux1_opt]
 
 and
 aux1_iats
@@ -528,6 +566,12 @@ case+ ca of
       list_vt_cons{string}("--constraint-ignore", res)
     // end of [val]
   }
+//
+| CA_patsopt (opt) =>
+  (
+    if issome (opt) then
+      res := list_vt_cons{string}(unsome (opt), res)
+  )
 //
 | _ => ()
 //
@@ -713,6 +757,9 @@ case+ cas2 of
     | CA_constraint_ignore() => let
         val cas1 = snoc (cas1, ca2) in auxlst (cas1, cas2, ress)
       end (* end of [CA_constraint_ignore] *)
+    | CA_patsopt _ => let
+        val cas1 = snoc (cas1, ca2) in auxlst (cas1, cas2, ress)
+      end (* end of [CA_patsopt] *)
 //
     | _(*ignored*) => auxlst (cas1, cas2, ress)
 //
@@ -791,6 +838,7 @@ case+ ca of
 //
 | CA_tlcalopt_disable() => ()
 | CA_constraint_ignore() => ()
+| CA_patsopt _ => () // goes to patsopt, not to the C compiler
 //
 | CA_CCOMPitm (item) => aux_CCOMPitm (item, res)
 //

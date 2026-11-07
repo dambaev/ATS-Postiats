@@ -137,6 +137,11 @@ case+ ca of
 //
 | CA_tlcalopt_disable() => prstr "CA_tlcalopt_disable"
 | CA_constraint_ignore() => prstr "CA_constraint_ignore"
+| CA_patsopt (opt) => (
+    prstr "CA_patsopt(";
+    if issome (opt) then prstr (unsome (opt));
+    prstr ")"
+  )
 //
 | CA_CCOMPitm(itm) =>
   (
@@ -386,6 +391,7 @@ case+ ca of
 //
 | CA_tlcalopt_disable () => ()
 | CA_constraint_ignore () => ()
+| CA_patsopt _ => () // not a C-compiler item: it goes to patsopt
 //
 | CA_CCOMPitm (itm) => aux_CCOMPitm (out, itm)
 //

@@ -57,6 +57,8 @@ datatype commarg =
   | CA_tlcalopt_disable // --tlcalopt-disable
   | CA_constraint_ignore // --constraint-ignore
 //
+  | CA_patsopt of stropt // --optflag: an option passed on to patsopt
+//
   | CA_CCOMPitm of string // any generic item is passed to $(CCOMP)
 // end of [commarg]
 
