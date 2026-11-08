@@ -2691,16 +2691,63 @@ auxfnd
 (
   l0: label, lxs: labhisexplst
 ) : hisexp = let
-  val-list_cons (lx, lxs) = lxs
-  val HSLABELED (l, opt, x) = lx
 in
-  if l0 = l then x else auxfnd (l0, lxs)
+  ( case+ lxs of
+  | list_nil() => let
+        val () = prerr_interror ()
+        val () = prerrln! (": auxfnd: label not found.")
+        val () = prerr_interror ()
+        val ((*exit*)) = assertloc (false)
+      in
+        $ERR.abort_interr{hisexp}((*deadcode*))
+      end // end of [list_nil]
+  | list_cons(lx, lxs) => let
+        val HSLABELED (l, opt, x) = lx
+      in
+        if l0 = l then x else auxfnd (l0, lxs)
+      end
+  )
 end // end of [auxfnd]
+
+fun
+auxfnd_opt
+(
+  l0: label, lxs: labhisexplst
+) : Option_vt(hisexp) = let
+in
+  ( case+ lxs of
+    | list_nil() => None_vt()
+    | list_cons(lx, lxs) => let
+        val HSLABELED (l, opt, x) = lx
+      in
+        if l0 = l then Some_vt(x) else auxfnd_opt(l0, lxs)
+      end // end of [list_cons]
+  )
+end // end of [auxfnd_opt]
+
+fun
+labhisexplst_get_elt_at
+(
+  lxs: labhisexplst, ind: int
+) : labhisexp = let
+in
+  ( case+ lxs of
+    | list_nil() => let
+        val () = prerr_interror ()
+        val () = prerrln! (": labhisexplst_get_elt_at: index out of range.")
+        val () = prerr_interror ()
+        val ((*exit*)) = assertloc (false)
+      in
+        $ERR.abort_interr{labhisexp}((*deadcode*))
+      end // end of [list_nil]
+    | list_cons(lx, lxs) => if ind = 0 then lx else labhisexplst_get_elt_at(lxs, ind - 1)
+  )
+end // end of [labhisexplst_get_elt_at]
 
 fun
 auxsel
 (
-  hse0: hisexp, pml: primlab
+  hse0: hisexp, pml: primlab, idx: int
 ) : hisexp = let
 //
 (*
@@ -2717,14 +2764,28 @@ pml.primlab_node of
   case+
     hse0.hisexp_node of
   | HSEtyrec
-      (knd, lhses) => auxfnd (lab, lhses)
-    // end of [HSEtyrec]
+      (knd, lhses) => let
+        val opt = auxfnd_opt (lab, lhses)
+      in
+        (
+          case+ opt of
+            | ~Some_vt (x) => x
+            | ~None_vt () => labhisexp_get_elt (labhisexplst_get_elt_at (lhses, idx))
+        )
+      end // end of [HSEtyrec]
   | HSEtyrecsin
       (lhse) => labhisexp_get_elt (lhse)
     // end of [HSEtyrecsin]
   | HSEtysum
-      (d2c, lhses) => auxfnd (lab, lhses)
-    // end of [HSEtysum]
+      (d2c, lhses) => let
+        val opt = auxfnd_opt (lab, lhses)
+      in
+        (
+          case+ opt of
+            | ~Some_vt (x) => x
+            | ~None_vt () => labhisexp_get_elt (labhisexplst_get_elt_at (lhses, idx))
+        )
+      end // end of [HSEtysum]
   | _ (*non-tuple*) => let
       val () = prerr_interror ()
       val () = prerrln! (": auxsel: pml = ", pml)
@@ -2754,21 +2815,21 @@ vtypedef
 res = List_vt @(hisexp, primlab)
 fun loop
 (
-  hse0: hisexp, pmls: primlablst, res: res
+  hse0: hisexp, pmls: primlablst, res: res, idx: int
 ) : res =
 (
   case+ pmls of
   | list_nil ((*void*)) => res
   | list_cons (pml, pmls) => let
-      val hse1 = auxsel (hse0, pml)
+      val hse1 = auxsel (hse0, pml, idx)
       val res = list_vt_cons ( @(hse0, pml), res )
     in
-      loop (hse1, pmls, res)
+      loop (hse1, pmls, res, idx + 1)
     end // end of [list_cons]
 ) (* end of [loop] *)
 //
 in
-  loop (hse0, pmls, list_vt_nil ())
+  loop (hse0, pmls, list_vt_nil (), 0)
 end // end of [auxselist]
 
 fun
