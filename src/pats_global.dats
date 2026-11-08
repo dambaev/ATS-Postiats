@@ -281,6 +281,19 @@ the_CHAINLAM_bodyflag_set(flag) = !rchainlambodyflag := flag
 //
 end // end of [local]
 
+local
+//
+val rstd_error_header = ref<int>(0)
+//
+in (*in-of-local*)
+//
+implement
+the_STD_ERROR_HEADER_get() = !rstd_error_header
+implement
+the_STD_ERROR_HEADER_set(flag) = !rstd_error_header := flag
+// end of [--std-error-header]
+end // end of [local]
+
 (* ****** ****** *)
 
 local

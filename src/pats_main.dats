@@ -496,6 +496,7 @@ fprintln! (out, "  --gline (for generating line pragma information in target cod
 //
 fprintln! (out, "  --debug (for enabling the generation of more informative error messages)");
 fprintln! (out, "  --debug2 (for enabling the generation of debugging information in target code)");
+fprintln! (out, "  --std-error-header (for printing error/warning headers as file:line:col)");
 //
 fprintln! (out, "  --atsreloc (for generating a script to help relocate packages in need)");
 //
@@ -2094,6 +2095,9 @@ case+ key of
 | "--chainlam" => {
     val () = $GLOB.the_CHAINLAM_flag_set(1)
   } // end of [--chainlam] // existential instantiation for inline unannotated lam args
+| "--std-error-header" => {
+    val () = $GLOB.the_STD_ERROR_HEADER_set(1)
+  } // end of [--std-error-header] // file:line:col: error(N): ...
 //
 | "--depgen" => (state.depgen := 1)
 | "--taggen" => (state.taggen := 1)

@@ -42,6 +42,9 @@ staload
 FIL = "./pats_filename.sats"
 typedef filename = $FIL.filename
 
+staload
+GLOB = "./pats_global.sats"
+
 (* ****** ****** *)
 
 staload "./pats_location.sats"
@@ -209,7 +212,18 @@ print_location
 //
 implement
 prerr_location
-  (loc) = fprint_location(stderr_ref, loc)
+  (loc) =
+if ($GLOB.the_STD_ERROR_HEADER_get ()) <> 0 then let
+  val () = $FIL.fprint_filename_full (stderr_ref, loc.filename)
+  val () = fprint_string (stderr_ref, ":")
+  val () = fprint_int (stderr_ref, loc.beg_nrow + 1)
+  val () = fprint_string (stderr_ref, ":")
+  val () = fprint_int (stderr_ref, loc.beg_ncol + 1)
+in
+  // nothing
+end else
+  fprint_location (stderr_ref, loc)
+// end of [if]
 //
 (* ****** ****** *)
 
