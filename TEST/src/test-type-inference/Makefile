@@ -73,6 +73,7 @@ test: \
 		test-type-inference17 \
 		test-type-inference18 \
 		test-type-inference19 \
+		test-type-inference20 \
 		test-type-inference
 
 
@@ -153,6 +154,10 @@ test-type-inference18: $(ATS_OBJS)
 	./$@
 
 test-type-inference19: $(ATS_OBJS)
+	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
+	./$@
+
+test-type-inference20: $(ATS_OBJS)
 	$(ATSCC) $(ATSCCFLAGS) -o $@ ./DATS/$@.dats $(ATSLIBS) 2>&1 | sed  's/ [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)) -- [0-9]*(line=\([0-9]*\), offs=\([0-9]*\)):/\1:\2:\3:\4/'
 	./$@
 
