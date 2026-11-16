@@ -113,7 +113,7 @@ fn
       >>= (( lam env =<fun1>
              ( exceptOption000
                ( env1
-               , lam env0 => v1 where {
+               , lam env0 =<1> v1 where {
                    val @( not_null | v1, object) = env0
                    val () = consumeObject object
                  }
