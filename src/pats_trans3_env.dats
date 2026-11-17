@@ -611,7 +611,7 @@ fun loop (
 in
 case+ ans of
 | true => let
-    // HX: each quantified variable is bound to an einvar
+    // each quantified variable is bound to an einvar
     // so that the dependent types solver can solve it;
     // [--chainlam]: except effect-sorted variables, which stay rigid
     // (see [stasub_s2varlst_bind_einvars])
@@ -963,7 +963,7 @@ fun loop (
 , sub: &stasub
 , s2qs: s2qualst
 , t2mas: t2mpmarglst_vt
-, nerr: &int // HX: unused
+, nerr: &int // unused
 ) : t2mpmarglst_vt = let
 in
   case+ s2qs of

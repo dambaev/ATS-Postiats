@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -743,7 +743,7 @@ end // end of [s2rtVar_set_s2rt]
 implement
 s2rtVar_set_s2rt
   (s2tV, s2t) = let
-  val s2t = s2rtnul_some (s2t) in !s2tV := s2t 
+  val s2t = s2rtnul_some (s2t) in !s2tV := s2t
 end // end of [s2rtVar_set_s2rt]
 
 implement
@@ -890,34 +890,33 @@ in
 case+ s2t1 of
 | S2RTbas
     (s2tb1) =>
-  (
-  case+ s2t2 of
-  | S2RTbas(s2tb2) => s2tb1 <= s2tb2 | _ => false
+  ( case+ s2t2 of
+  | S2RTbas(s2tb2) => s2tb1 <= s2tb2
+  | S2RTVar(s2tV2) => auxVar(knd, s2tV2, s2t1)
+  | _ => false
   )
 | S2RTfun
   (
-    s2ts1, s2t1
+    s2ts1, s2tres
   ) =>
-  (
-  case+ s2t2 of
-  | S2RTfun
-    (
-      s2ts2, s2t2
-    ) =>
-    if s2rtlst_ltmat(knd, s2ts2, s2ts1)
-      then s2rt_ltmat(knd, s2t1, s2t2) else false
+  ( case+ s2t2 of
+  | S2RTfun ( s2ts2, s2t2res ) => if s2rtlst_ltmat(knd, s2ts2, s2ts1)
+      then s2rt_ltmat(knd, s2tres, s2t2res)
+      else false
     // end of [if]
+  | S2RTVar(s2tV2) => auxVar(knd, s2tV2, S2RTfun(s2ts1, s2tres))
   | _ (*non-S2RTfun*) => false
   )
 | S2RTtup(s2ts1) =>
-  (
-  case+ s2t2 of
-  | S2RTtup(s2ts2) => s2rtlst_ltmat(knd, s2ts1, s2ts2) | _ => false
+  ( case+ s2t2 of
+  | S2RTtup(s2ts2) => s2rtlst_ltmat(knd, s2ts1, s2ts2)
+  | S2RTVar(s2tV2) => auxVar(knd, s2tV2, s2t1)
+  | _ => false
   )
 | S2RTVar(s2tV1) =>
-  (
-  case+ s2t2 of
-  | S2RTVar(s2tV2) when s2tV1 = s2tV2 => true | _ => auxVar(knd, s2tV1, s2t2)
+  ( case+ s2t2 of
+  | S2RTVar(s2tV2) when s2tV1 = s2tV2 => true
+  | _ => auxVar(knd, s2tV1, s2t2)
   )
 //
 | S2RTerr ((*void*)) => false

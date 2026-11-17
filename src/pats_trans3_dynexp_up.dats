@@ -777,6 +777,115 @@ in
   )
 end // end of [chainlam_s2exp_has_einvar]
 //
+// [--chainlam]: helpers for elaborating an unannotated lambda value whose
+// parameter is later used as a function without an expected type. If such a
+// parameter still has an unsolved static type at an application site, a
+// fresh function type is synthesized from the actual arity and then solved
+// against the unsolved variable.
+//
+fn
+  chainlam_is_unbound_s2exp
+  (s2e: s2exp
+  ): bool =
+  ( case+ s2e.s2exp_node of
+  | S2Evar _ (* lower-case *) => true
+  | S2EVar _ (* upper-case *) => true
+  | S2Einvar _ (* wrapper    *) => true
+  | _ (* not unbound *) => false
+  ) // end of [chainlam_is_unbound_s2exp]
+//
+fn
+  chainlam_make_fresh_s2rt
+  (loc: loc_t
+  ): s2rt =
+  S2RTVar (s2rtVar_make (loc))
+// end of [chainlam_make_fresh_s2rt]
+//
+fn
+  chainlam_make_fresh_var
+  (loc: loc_t
+  ): s2exp =
+  s2exp_Var_make_srt (loc, chainlam_make_fresh_s2rt (loc))
+//
+fun
+  chainlam_make_fresh_args
+  ( loc: loc_t
+  , n: int
+  ): s2explst =
+  ( if n > 0
+      then let
+        val s2e = chainlam_make_fresh_var (loc)
+        val s2es = chainlam_make_fresh_args (loc, n-1)
+      in
+        list_cons (s2e, s2es)
+      end
+    else list_nil ()
+  ) // end of [chainlam_make_fresh_args]
+//
+fun
+  chainlam_count_d23_aux_ptr
+  {n:nat}
+  .<n>.
+  ( d23es: !list_vt (d23exp, n)
+  , cnt: &int
+  ) : void =
+  ( case+ d23es of
+  | list_vt_nil () => {
+      prval () = fold@ (d23es)
+    }
+  | list_vt_cons (!p_d23e, !p_d23es) => {
+      val () = cnt := cnt + 1
+      val () = chainlam_count_d23_aux_ptr (!p_d23es, cnt)
+      prval () = fold@ (d23es)
+    }
+  ) // end of [chainlam_count_d23_aux_ptr]
+//
+fn
+  chainlam_count_d23_formals_ptr
+  {n:nat}
+  ( d23es: !list_vt (d23exp, n)
+  ) : int =
+let
+  var cnt : int = 0
+  val () = chainlam_count_d23_aux_ptr (d23es, cnt)
+in
+  cnt
+end // end of [chainlam_count_d23_formals_ptr]
+//
+fn
+  chainlam_s2expopt_get_d2e_var_type
+  ( d2e: d2exp
+  ): s2expopt =
+  ( case+ d2e.d2exp_node of
+  | D2Evar d2v => d2var_get_type(d2v)
+  | _ (* not a variable *) => None ()
+  )
+// end of [chainlam_s2expopt_get_d2e_var_type]
+//
+fn
+  chainlam_syn_fun_type_for_app
+  {n:nat}
+  ( loc: loc_t
+  , npf: int
+  , d23es: !list_vt (d23exp, n)
+  ) : s2exp =
+let
+//
+  val n = chainlam_count_d23_formals_ptr (d23es)
+  val s2es_arg = chainlam_make_fresh_args (loc, n)
+  val s2e_res = chainlam_make_fresh_var (loc)
+  // The function sort stays an unbound sort variable: the synthesized
+  // function type may later have to unify with a view-typed (prop-sorted)
+  // linear implication, not only with a proper function sort.
+  val s2t_fun = chainlam_make_fresh_s2rt (loc)
+//
+in
+  s2exp_fun_srt
+    ( s2t_fun
+    , FUNCLOfun (), 0(*lin*), s2eff_nil, npf, s2es_arg, s2e_res
+    )
+end // end of [chainlam_syn_fun_type_for_app]
+//
 
 (* ****** ****** *)
 
@@ -911,16 +1020,6 @@ fun
         && not(chainlam_is_lam_d3(d3e))
   val () = if cond then chainlam_prebind_one_s2exp(locarg, d3e.d3exp_type, s2e)
 } // end of [chainlam_prebind_if_formal]
-
-fun
-  chainlam_s2expopt_get_d2e_var_type
-  ( d2e: d2exp
-  ): s2expopt =
-  ( case+ d2e.d2exp_node of
-  | D2Evar d2v => d2var_get_type(d2v)
-  | _ (* not a variable *) => None ()
-  )
-// end of [chainlam_s2expopt_get_d2e_var_type]
 
 fun
   chainlam_prebind_d23e_fopr_ptr
@@ -1767,10 +1866,8 @@ d23exp_trup_app23
 *)
   var err: int = 0
   val locsarg = $LOC.location_rightmost (loc_fun)
-  val
-    chainlam_flag_on = ($GLOB.the_CHAINLAM_flag_get ()): int
-  val
-    chainlam_lam_arg = chainlam_d23explst_has_inline_unannotated_lam (d23es_arg)
+  val chainlam_flag_on = ($GLOB.the_CHAINLAM_flag_get ()): int
+  val chainlam_lam_arg = chainlam_d23explst_has_inline_unannotated_lam (d23es_arg)
   val (s2e_fun, s2ps) = (
     if (chainlam_flag_on > 0 && chainlam_lam_arg)
       then (
@@ -1782,6 +1879,18 @@ d23exp_trup_app23
       )
       else s2exp_unimet_instantiate_all (s2e_fun, locsarg, err)
   ) : (s2exp, s2explst_vt) // end of [val]
+  // [--chainlam]: if an unannotated lambda parameter is used as a function
+  // while its type is still an unsolved variable, synthesize a fresh function
+  // type for the application from the actual arity. The synthesized type is
+  // used LOCALLY for this application only: the parameter variable itself is
+  // left unsolved so that the real type (flowing in from the use site via the
+  // pre-binding pass) can still be merged into it later. Merging the
+  // synthesized type into the variable would block that later solution.
+  val s2e_fun =
+    ( if chainlam_flag_on > 0 && chainlam_is_unbound_s2exp (s2e_fun)
+      then chainlam_syn_fun_type_for_app (locsarg, npf, d23es_arg)
+      else s2e_fun
+    ) : s2exp
   val () = trans3_env_add_proplst_vt (locsarg, s2ps)
 (*
   val () = begin

@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -44,6 +44,7 @@ UN = "prelude/SATS/unsafe.sats"
 (* ****** ****** *)
 
 staload "./pats_basics.sats"
+staload GLOB = "./pats_global.sats"
 
 (* ****** ****** *)
 
@@ -113,6 +114,21 @@ fun aux_p2at (p2t0: p2at): s2exp
 extern
 fun aux_labp2atlst (lp2ts: labp2atlst): labs2explst
 
+// [--chainlam]: an unannotated lambda-argument pattern in a standalone
+// lambda (e.g. [val f = lam x => ...]) has no expected formal type to orient
+// its sort. The default [t@ype] sort is too narrow for patterns such as
+// [val (pf | x) = ...] or [viewt0ype] arguments; use [viewt0ype] while
+// [--chainlam] is active so the argument sort can be solved later from the
+// lambda body/use site.
+fn
+  aux_syn_srt
+  ( loc: loc_t
+  ): s2rt =
+  (case+ ($GLOB.the_CHAINLAM_flag_get ()) of
+  | 0 (* off *) => s2rt_t0ype
+  | _ (* on  *) => S2RTVar (s2rtVar_make (loc))
+  ) // end of [aux_syn_srt]
+
 in (* in of [local] *)
 
 implement
@@ -127,10 +143,10 @@ case+ p2t0.p2at_node of
 | P2Tann (p2t, s2e_ann) => s2e_ann
 //
 | P2Tany _ =>
-    s2exp_Var_make_srt (p2t0.p2at_loc, s2rt_t0ype)
+    s2exp_Var_make_srt (p2t0.p2at_loc, aux_syn_srt (p2t0.p2at_loc))
   // end of [P2Tany]
 | P2Tvar _ =>
-    s2exp_Var_make_srt (p2t0.p2at_loc, s2rt_t0ype)
+    s2exp_Var_make_srt (p2t0.p2at_loc, aux_syn_srt (p2t0.p2at_loc))
   // end of [P2Tvar]
 //
 | P2Tint _ => s2exp_int_t0ype () // int0
@@ -159,7 +175,27 @@ case+ p2t0.p2at_node of
 *)
 //
 | P2Trec (knd, npf, lp2ts) =>
-    s2exp_tyrec (knd, npf, aux_labp2atlst (lp2ts))
+    ( if ($GLOB.the_CHAINLAM_flag_get ()) <> 0
+      then
+        let
+          // [--chainlam]: give the synthesized record the [viewt0ype] sort:
+          // computing the sort by joining the field sorts would force all the
+          // freshly created (unbound) field sort variables into one common sort
+          // before any use site is seen.
+          val tyrecknd =
+            ( case+ knd of
+            | 0 => TYRECKINDflt0
+            | 1 => TYRECKINDbox()
+            | 2 => TYRECKINDbox()
+            | _ => TYRECKINDbox_lin()
+            ) : tyreckind
+          // end of [val]
+        in
+          s2exp_tyrec_srt (s2rt_vt0ype, tyrecknd, npf, aux_labp2atlst (lp2ts))
+        end
+      else s2exp_tyrec (knd, npf, aux_labp2atlst (lp2ts))
+    )
+  // end of [P2Trec]
 //
 | P2Trefas (d2v, p2t) => p2at_syn_type (p2t)
 //
@@ -181,7 +217,7 @@ case+ p2t0.p2at_node of
 *)
 //
 end // end of [aux_p2at]
-  
+
 implement
 aux_labp2atlst
   (lp2ts) = let
@@ -466,7 +502,7 @@ fun aux
       end // end of [list_cons]
     | list_nil () => list_nil ()
     ) // end of [list_nil]
-// end of [aux]  
+// end of [aux]
 in
   aux (npf, p2ts, s2es, serr)
 end (* end of [p2atlst_trdn_arg] *)
@@ -960,7 +996,7 @@ in
 //
 case+ s2e.s2exp_node of
 | S2Eapp (s2e_fun, s2es_arg) => let
-    val () = 
+    val () =
       $SOL.s2exp_tyleq_solve_err (loc0, s2e_pat_fun, s2e_fun, nerr)
     // end of [val]
   in
@@ -1211,6 +1247,19 @@ end // end of [labp2atlst_trdn]
 
 (* ****** ****** *)
 
+// [--chainlam]: a static expression still represented by an unsolved
+// static variable (lower-case, upper-case, or an invar wrapper).
+fn
+  chainlam_is_unbound_s2exp
+  (s2e: s2exp
+  ): bool =
+  (case+ s2e.s2exp_node of
+  | S2Evar _ (* lower-case *) => true
+  | S2EVar _ (* upper-case *) => true
+  | S2Einvar _ (* wrapper    *) => true
+  | _ (* not unbound *) => false
+  ) // end of [chainlam_is_unbound_s2exp]
+
 implement
 p2at_trdn_rec
   (p2t0, s2f0) = let
@@ -1300,19 +1349,27 @@ s2e.s2exp_node of
     p3at_rec(loc0, s2e, knd, npf, pck, lp3ts)
   end // end of [S2Etyrec]
 | _ (* non-S2Etyrec *) =>
-    p3at_errpat(loc0, s2e) where
-  {
-//
-    val () =
-    prerr_error3_loc(loc0)
-    val () =
-    prerrln! (": the tuple/record pattern is ill-typed.")
-//
-    val s2e0 = s2hnf2exp(s2f0)
-    val ((*void*)) =
-    the_trans3errlst_add(T3E_p2at_trdn(p2t0, s2e0))
-//
-  } // end of [rest-of-p2at]
+  (
+    if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 && chainlam_is_unbound_s2exp (s2e)
+    then
+      let
+        // [--chainlam]: when a record pattern is being checked against a
+        // not-yet-solved type variable (as happens for a named unannotated
+        // lambda value), synthesize the record type from the pattern and check
+        // the pattern against it. The type variable itself is deliberately left
+        // unsolved: merging the synthesized type into it would block the real
+        // record type from being merged into it later at the use site.
+        val s2e_syn = p2at_syn_type (p2t0)
+      in
+        p2at_trdn_rec (p2t0, s2exp2hnf (s2e_syn))
+      end
+    else p3at_errpat (loc0, s2e) where {
+        val () = prerr_error3_loc (loc0)
+        val () = prerrln! (": the tuple/record pattern is ill-typed.")
+        val s2e0 = s2hnf2exp (s2f0)
+        val ((*void*)) = the_trans3errlst_add (T3E_p2at_trdn (p2t0, s2e0))
+      }
+  ) (* end of [chainlam record-pattern inference] *)
 //
 end // end of [p2at_trdn_rec]
 
