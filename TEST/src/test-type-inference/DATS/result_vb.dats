@@ -97,4 +97,10 @@ implement {env}{a}{b}{fail}exceptOption000{fe}(env, fail, next, value) =
 | ~None_vt() => Fail_vt( fail( env))
 )
 
+implement {env}{a}{b}{fail}exceptOption0000{fe}(env, value, fail, next) =
+( case value of
+| ~Some_vt( next_val ) => Succ_vt( next( env, next_val) )
+| ~None_vt() => Fail_vt( fail( env))
+)
+
 implement main() = ()

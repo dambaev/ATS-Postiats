@@ -201,7 +201,23 @@ fn
   ( env: INV(env)
   , fail: (INV(env))-<fe> INV(fail)
   , next: ( INV(env), INV(a) )-<fe> INV(b)
-  , value: INV(Option_vt( INV(a)))
+  , value: Option_vt( INV(a))
+  ):<fe>
+  Result_vt( INV(fail)
+           , INV(b)
+           )
+
+fn
+  {env:viewt@ype+}
+  {b:viewt@ype+}
+  {a:viewt@ype+}
+  {fail:viewt@ype+}
+  exceptOption0000
+  {fe:eff}
+  ( env: INV(env)
+  , value: Option_vt( INV(a))
+  , fail: (INV(env))-<fe> INV(fail)
+  , next: ( INV(env), INV(a) )-<fe> INV(b)
   ):<fe>
   Result_vt( INV(fail)
            , INV(b)
