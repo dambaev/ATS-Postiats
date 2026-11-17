@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -141,9 +141,10 @@ end // end of [local]
 
 // [--chainlam]: peek for an inline unannotated lambda among d2 args
 fun
-d2exp_is_inline_lam (d2e: d2exp) : bool =
-(
-case+ d2e.d2exp_node of
+  d2exp_is_inline_lam
+  ( d2e: d2exp
+  ) : bool =
+( case+ d2e.d2exp_node of
 | D2Elam_dyn _ => true
 | D2Elaminit_dyn _ => true
 | D2Eann_funclo (d2e, _) => d2exp_is_inline_lam d2e
@@ -254,24 +255,34 @@ end // end of [d3exp_trup_item]
 // template constant with existential (einvar) instantiation of its
 // quantifiers; all other items are re-elaborated as usual
 //
-fun d3exp_trup_item_exi
-  (d3e0: d3exp): d3exp = let
+fun
+  d3exp_trup_item_exi
+  (d3e0: d3exp
+  ): d3exp =
+let
 //
-val loc0 = d3e0.d3exp_loc
-val-D3Eitem (d2i, t2mas) = d3e0.d3exp_node
-val isnil = list_is_nil (t2mas)
+  val loc0 = d3e0.d3exp_loc
+  val-D3Eitem (d2i, t2mas) = d3e0.d3exp_node
+  val isnil = list_is_nil (t2mas)
 //
 in
 //
-case+ d2i of
+( case+ d2i of
 | D2ITMcst d2c =>
-  ( if isnil then
-      d2exp_trup_cst_exi (loc0, d2c)
-    else
-      d2exp_trup_tmpcst (loc0, d2c, t2mas)
+  ( if isnil
+    then
+      ( // [--chainlam]: proof functions are compile-time lemma checks:
+        // keep their template quantifiers rigid (no einvars to unify)
+        if $GLOB.the_CHAINLAM_flag_get () <> 0 &&
+           dcstkind_is_prfun (d2cst_get_kind (d2c))
+          then d2exp_trup_cst (loc0, d2c)
+          else d2exp_trup_cst_exi (loc0, d2c)
+      ) // end of [if]
+    else d2exp_trup_tmpcst (loc0, d2c, t2mas)
     // end of [if]
   ) // end of [D2ITMcst]
 | _ => d3exp_trup_item (d3e0)
+)
 //
 end // end of [d3exp_trup_item_exi]
 
@@ -334,7 +345,7 @@ end // end of [fprint_d3pitm]
 (* ****** ****** *)
 //
 datatype
-d3exparg = 
+d3exparg =
 | D3EXPARGsta of
     (loc_t(*arg*), s2exparglst)
   // end of [D3EXPARGsta]
@@ -395,18 +406,17 @@ case+ d3as of
       // declared quantifiers with S2Eexi, so no argument peek is needed
       // here (the args are already UP-elaborated at this point).
       val chainlam_hn = s2exp_hnfize (s2e_fun)
-      val chainlam_exi_callee =
-        ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-        (case+ chainlam_hn.s2exp_node of
-         | S2Eexi _ => true | _ => false)
-      val chainlam_lam_arg = chainlam_exi_callee
+      val chainlam_exi_callee = ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+            (case+ chainlam_hn.s2exp_node of
+            | S2Eexi _ => true
+            | _ => false
+            )
+      val chainlam_lam_arg = chainlam_exi_callee && s2exp_is_nonprf (s2e_fun)
       val (s2e_fun, s2ps) =
-        ( if chainlam_lam_arg && ($GLOB.the_CHAINLAM_flag_get ()) <> 0 then (
-          s2exp_eximet_instantiate_all (s2e_fun, locarg, err)
-        ) else (
-          s2exp_unimet_instantiate_all (s2e_fun, locarg, err)
-        ) // end of [if]
-        ): (s2exp, s2explst_vt)
+            ( if chainlam_lam_arg && ($GLOB.the_CHAINLAM_flag_get ()) <> 0
+              then s2exp_eximet_instantiate_all (s2e_fun, locarg, err)
+              else s2exp_unimet_instantiate_all (s2e_fun, locarg, err)
+            ): (s2exp, s2explst_vt)
       val () = trans3_env_add_proplst_vt (loc_fun, s2ps)
       val d3e_fun = d3exp_app_unista (loc0, s2e_fun, d3e_fun)
       val-S2Efun (
@@ -414,8 +424,12 @@ case+ d3as of
       ) = s2e_fun.s2exp_node // end of[val]
 //
       val loc_app = $LOC.location_combine (loc_fun, locarg)
-      val s2es_fun_arg = 
+      val s2es_fun_arg =
         s2fun_opninv_and_add (locarg, s2es_fun_arg, s2e_fun_res)
+      // [--chainlam]: pre-bind formal einvar slots from non-lambda actual
+      // arguments before the sequential DOWN elaboration of the args, so
+      // an inline unannotated lambda argument does not depend on source order
+      val () = chainlam_prebind_d3_formal_slots (locarg, d3es_arg, s2es_fun_arg)
       val d3es_arg = d3explst_trdn_arg (d3es_arg, s2es_fun_arg)
 //
       val (
@@ -559,6 +573,18 @@ case+ xys of
 end // end of [auxsel_skexplst]
 
 fun
+auxsel_pitm_is_prf
+(
+  d3pis: d3pitmlst
+) : int =
+( case+ d3pis of
+| list_nil() => 0
+| list_cons(d3pi, d3pis) =>
+    (if s2exp_is_prf(d3pitm_get_type(d3pi))
+       then 1 else auxsel_pitm_is_prf(d3pis))
+) // end of [auxsel_pitm_is_prf]
+
+fun
 auxsel_arglst
 (
   xys: List_vt(XY)
@@ -626,21 +652,21 @@ case+ d2as of
             // an inline unannotated lambda in existential body mode: nested
             // template applications elaborated inside such a lambda body get
             // solvable einvars instead of rigid template variables
-            val chainlam_mode =
-              ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-              d2explst_has_inline_lam (d2es)
+            val chainlam_mode = ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+                  d2explst_has_inline_lam (d2es)
             val chainlam_mode0 =
-              ( if chainlam_mode then (
-                  let
-                    val flag0 = $GLOB.the_CHAINLAM_bodyflag_get ()
-                    val () = $GLOB.the_CHAINLAM_bodyflag_set (1)
-                  in
-                    flag0
-                  end // end of [let]
-                ) // end of [then]
-                else $GLOB.the_CHAINLAM_bodyflag_get ()
-                // end of [if]
-              ) : int
+                  ( if chainlam_mode
+                    then (
+                        let
+                          val flag0 = $GLOB.the_CHAINLAM_bodyflag_get ()
+                          val () = $GLOB.the_CHAINLAM_bodyflag_set (1)
+                        in
+                          flag0
+                        end // end of [let]
+                      ) // end of [then]
+                    else $GLOB.the_CHAINLAM_bodyflag_get ()
+                    // end of [if]
+                  ) : int
             val d3es = d2explst_trup (d2es)
             val () = $GLOB.the_CHAINLAM_bodyflag_set (chainlam_mode0)
             val s2kes = list_map_fun<d3exp><s2kexp>
@@ -750,7 +776,7 @@ auxeq_d3pitm_remdup
 case+ d3pis of
 | list_nil() => list_nil()
 | list_cons(d3pi0, d3pis) => let
-    val 
+    val
     d3pis =
     list_filter_cloptr<d3pitm>
     ( d3pis
@@ -814,9 +840,17 @@ in
     ($UN.castvwtp1{d3pitmlst}(d3pis), fopr)
   // end of [list_map_fun]
 end // end of [val]
+val proofcall =
+  auxsel_pitm_is_prf($UN.castvwtp1{d3pitmlst}(d3pis))
 val ((*freed*)) = list_vt_free(d3pis)
-//
+// end of [val]
+val proofarg0 = $GLOB.the_CHAINLAM_PROOFARG_flag_get ()
+val () = if $GLOB.the_CHAINLAM_flag_get () <> 0 && proofcall <> 0
+      then $GLOB.the_CHAINLAM_PROOFARG_flag_set (1)
+      else ()
 val xyz = auxsel_arglst(xys, d2as, list_vt_nil)
+val () = $GLOB.the_CHAINLAM_PROOFARG_flag_set (proofarg0)
+// end of [val]
 //
 val d3pis = xyz.0
 val d3pis = auxselmax(d3pis)
@@ -860,36 +894,41 @@ case+ d3pis of
     // likewise inside the UP-elaborated body of such a lambda (nested
     // template applications there must get einvars as well)
     val chainlam_exi_body =
-      ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-      ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+          ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+          ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
     val d3e_fun =
-      ( if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-             (d2exparglst_has_inline_lam (d2as) || chainlam_exi_body) then
-          d3exp_trup_item_exi (d3e_fun)
-        else
-          d3exp_trup_item (d3e_fun)
-        // end of [if]
-      ) : d3exp
+          ( if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+                 (d2exparglst_has_inline_lam (d2as) || chainlam_exi_body) &&
+              (* [--chainlam]: a proof function (lemma/prfun) must keep its template
+                 quantifiers as tqvars: the DOWN instantiation binds them directly
+                 against the elaborated actual arguments. Existential (einvar)
+                 instantiation would replace them by fresh einvars which can never
+                 be unified with the einvars of the actual arguments (einvar-einvar
+                 unification is refused), leaving the lemma preconditions unsolved. *)
+              s2exp_is_nonprf (d3e_fun.d3exp_type)
+            then d3exp_trup_item_exi (d3e_fun)
+            else d3exp_trup_item (d3e_fun)
+            // end of [if]
+          ) : d3exp
     // [--chainlam]: the remaining d2 args are UP-elaborated HERE (the
     // single-candidate path of [auxsel_arglst] leaves them in xyz.2);
     // set the body mode around that elaboration so that nested template
     // applications inside an inline unannotated lambda get einvars
     val d3e_fun = d3exp_trup_applst(d2e0, d3e_fun, xyz.1)
-    val chainlam_rest =
-      ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-      d2exparglst_has_inline_lam (xyz.2)
+    val chainlam_rest = ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+          d2exparglst_has_inline_lam (xyz.2)
     val chainlam_rest0 =
-      ( if chainlam_rest then (
-          let
-            val flag0 = $GLOB.the_CHAINLAM_bodyflag_get ()
-            val () = $GLOB.the_CHAINLAM_bodyflag_set (1)
-          in
-            flag0
-          end // end of [let]
-        ) // end of [then]
-        else $GLOB.the_CHAINLAM_bodyflag_get ()
-        // end of [if]
-      ) : int
+          ( if chainlam_rest then (
+              let
+                val flag0 = $GLOB.the_CHAINLAM_bodyflag_get ()
+                val () = $GLOB.the_CHAINLAM_bodyflag_set (1)
+              in
+                flag0
+              end // end of [let]
+            ) // end of [then]
+            else $GLOB.the_CHAINLAM_bodyflag_get ()
+            // end of [if]
+          ) : int
     val d3e_res = d23exp_trup_applst(d2e0, d3e_fun, xyz.2)
     val () = $GLOB.the_CHAINLAM_bodyflag_set (chainlam_rest0)
   in
@@ -969,7 +1008,7 @@ case+ d2as of
       in
         list_cons(d2a, d2as)
       end // end of [D2EXPARGdyn]
-  ) (* end of [list_cons] *)  
+  ) (* end of [list_cons] *)
 //
 ) (* end of [auxins2] *)
 

@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -59,6 +59,7 @@ staload "./pats_intinf.sats"
 
 staload "./pats_staexp2.sats"
 staload "./pats_staexp2_util.sats"
+staload GLOB = "./pats_global.sats"
 staload "./pats_stacst2.sats"
 
 (* ****** ****** *)
@@ -607,7 +608,55 @@ in
 //
 case+ s2e0.s2exp_node of
 //
-| S2Evar s2v => s3exp_var (s2v)
+| S2Evar s2v =>
+  let
+    // [--chainlam]: register as a column of the current linear env when it
+    // was never opened into it (duplicates are harmless zero columns)
+    val () =
+      if $GLOB.the_CHAINLAM_flag_get () <> 0
+        then s2vbcfenv_add_svar (env, s2v)
+        else ()
+  in
+    s3exp_var (s2v)
+  end // end of [S2Evar]
+//
+| S2EVar s2V =>
+  ( if $GLOB.the_CHAINLAM_flag_get () <> 0
+  then
+    let
+      // [--chainlam]: witnesses of mutable d2var obligations are linked
+      // the (upper-case) s2Vars of their instantiation site; follow the link
+      // when present, otherwise linearize against a cached s2var view so that
+      // goal atoms and hypothesis atoms share the same linear key.
+      val linkopt = s2Var_get_link (s2V)
+    in
+      ( case+ linkopt of
+      | Some (s2e_link) => s3exp_make (env, s2e_link)
+      | None () =>
+        let
+          val xopt = s2Var_get_svar (s2V)
+        in
+          ( case+ xopt of
+          | Some x =>
+            let
+              val () = s2vbcfenv_add_svar (env, x)
+            in
+              s3exp_var (x)
+            end // end of [Some]
+          | None () =>
+            let
+              val x = s2var_make_srt (s2Var_get_srt (s2V))
+              val () = s2Var_set_svar (s2V, Some x)
+              val () = s2vbcfenv_add_svar (env, x)
+            in
+              s3exp_var (x)
+            end // end of [None]
+          )
+        end // end of [None]
+      )
+    end // end of [let]
+  else s3exp_err (s2e0.s2exp_srt)
+  ) // end of [S2EVar: chainlam-gated]
 //
 | S2Eint i => s3exp_int (i)
 | S2Eintinf (int) => s3exp_intinf (int)
@@ -641,6 +690,13 @@ case+ s2e0.s2exp_node of
     end // end of [non-cst]
   ) (* end of [S2Eapp] *)
 | S2Eeqeq (s2e1, s2e2) => auxeq (env, s2e1, s2e2)
+| S2Einvar s2e =>
+    // [--chainlam]: invar-wrapped props (witnesses of mutable d2var
+    // post-states) must be linearized through their inner prop
+    if $GLOB.the_CHAINLAM_flag_get () <> 0
+      then s3exp_make (env, s2e)
+      else s3exp_err (s2e0.s2exp_srt)
+    // end of [S2Einvar: chainlam-gated]
 | S2Emetdec (met, met_bound) => let
     val s2e_met = s2exp_metdec_reduce (met, met_bound)
   in
@@ -1095,7 +1151,7 @@ case+ opt of
   in
     s3exp_app (s3e, s3es)
   end // end of [None_vt]
-//  
+//
 end // end of [s3exp_make_s2cst_s2explst]
 
 (* ****** ****** *)

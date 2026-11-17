@@ -126,10 +126,16 @@ fun the_DEBUGATS_dbgline_set(flag: int): void
 //
 fun the_CHAINLAM_flag_get(): int
 fun the_CHAINLAM_flag_set(flag: int): void
+// [--chainlam]: proof-function call context. Actual proof arguments must
+// keep their original (rigid) view types; existential instantiation of
+// their pos/nat quantifiers creates unsolvable nat constraints.
+fun the_CHAINLAM_PROOFARG_flag_get(): int
+fun the_CHAINLAM_PROOFARG_flag_set(flag: int): void
 // [--chainlam]: set while UP-elaborating the body of an inline unannotated
 // lambda argument (nested template applications must get einvars there)
 fun the_CHAINLAM_bodyflag_get(): int
 fun the_CHAINLAM_bodyflag_set(flag: int): void
+//
 // [--std-error-header]: print error/warning headers as
 // file:line:col: error(N): ... (default OFF)
 fun the_STD_ERROR_HEADER_get(): int

@@ -303,6 +303,11 @@ fun d3explst_trdn_arg
   (d3es: d3explst, s2es: s2explst): d3explst
 // end of [d3explst_trdn_arg]
 
+// [--chainlam]: bind the callee's formal einvar slots from non-lambda
+// arguments before elaborating the remaining (lambda) arguments sequentially.
+fun chainlam_prebind_d3_formal_slots
+  (locarg: loc_t, d3es: d3explst, s2es: s2explst): void
+
 (* ****** ****** *)
 //
 fun d2exp_trup_int (d2e0: d2exp, i: int): d3exp

@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -68,9 +68,11 @@ prerr_FILENAME<> () = prerr "pats_constraint3_solve"
 (* ****** ****** *)
 
 staload "./pats_staexp2.sats"
+staload "./pats_staexp2_util.sats"
 staload "./pats_patcst2.sats"
 staload "./pats_dynexp2.sats"
 staload "./pats_trans3_env.sats"
+staload GLOB = "./pats_global.sats" // for the [--chainlam] flag
 
 (* ****** ****** *)
 
@@ -488,7 +490,7 @@ case+ c3tk of
 | C3TKsome_vbox _ =>
     (0) where {
     val () = prerr_error3_loc (loc0)
-    val ((*void*)) = 
+    val ((*void*)) =
       prerrln! ": unsolved constraint for vbox preservation"
   } (* end of [C3TKsome_vbox] *)
 //
@@ -561,7 +563,7 @@ of // case+
     c3nstr_solve_itmlst (loc0, env, s3is, unsolved, err)
   // end of [C3NSTRitmlst]
 //
-| C3NSTRsolverify(s2e_prop) => 
+| C3NSTRsolverify(s2e_prop) =>
     c3nstr_solve_solverify (loc0, env, s2e_prop, err)
 //
 ) : int // end of [val]
@@ -594,6 +596,56 @@ end // end of [c3nstr_solve_main]
 
 (* ****** ****** *)
 
+(* ****** ****** *)
+// [--chainlam]: the prop may still mention stale formal vars whose links
+// were established after the constraint was queued; linear atoms keyed by
+// the stale s2Var will not match the hypothesis atoms keyed by the actual
+// vars, so substitute (read) the links before linearization.
+//
+fun
+  c3solve_s2exp_deepread
+  ( s2e0: s2exp
+  ) : s2exp =
+  let
+    fun
+      aux_lst
+      ( s2es0: s2explst
+      ) : s2explst =
+      ( case+ s2es0 of
+      | list_cons (s2e, s2es) =>
+        let
+          val s2e1 = c3solve_s2exp_deepread (s2e)
+          val s2es1 = aux_lst (s2es)
+        in
+          list_cons (s2e1, s2es1)
+        end // end of [list_cons]
+      | list_nil () => list_nil ()
+      )
+    // end of [aux_lst]
+    val s2f0 = s2hnf2exp (s2exp2hnf (s2e0))
+  in
+    ( case+ s2f0.s2exp_node of
+    | S2Eapp (s2e_fun, s2es_arg) => let
+        val s2es_arg1 = aux_lst (s2es_arg)
+      in
+        s2exp_app_srt (s2f0.s2exp_srt, s2e_fun, s2es_arg1)
+      end // end of [S2Eapp]
+    | S2Eexi (s2vs, s2ps, s2e) => let
+        val s2e1 = c3solve_s2exp_deepread (s2e)
+      in
+        s2exp_exi (s2vs, s2ps, s2e1)
+      end // end of [S2Eexi]
+    | S2Einvar (s2e) => let
+        val s2e1 = c3solve_s2exp_deepread (s2e)
+      in
+        s2exp_invar (s2e1)
+      end // end of [S2Einvar]
+    | _ => s2f0
+    )
+end // end of [c3solve_s2exp_deepread]
+
+(* ****** ****** *)
+
 implement
 c3nstr_solve_prop
   (loc0, env, s2p, err) = let
@@ -603,6 +655,11 @@ c3nstr_solve_prop
     pprint_s2exp (s2p); print_newline ();
   end // end of [val]
 *)
+  val s2p =
+    if $GLOB.the_CHAINLAM_flag_get () <> 0
+      then c3solve_s2exp_deepread (s2p)
+      else s2p
+    // end of [if]
 in
   s3explst_solve_s2exp (loc0, env, s2p, err)
 end // end of [c3nstr_solve_prop]

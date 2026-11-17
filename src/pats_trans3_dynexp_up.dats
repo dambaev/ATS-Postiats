@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -77,9 +77,9 @@ staload "./pats_staexp2_util.sats"
 staload "./pats_staexp2_error.sats"
 
 (* ****** ****** *)
-  
+
 staload "./pats_stacst2.sats"
-  
+
 (* ****** ****** *)
 
 staload "./pats_patcst2.sats"
@@ -220,12 +220,12 @@ extern
 fun d2exp_trup_macsyn (d2e0: d2exp): d3exp
 
 (* ****** ****** *)
-  
+
 extern
 fun d2exp_trup_solassert (d2e0: d2exp): d3exp
 extern
 fun d2exp_trup_solverify (d2e0: d2exp): d3exp
-  
+
 (* ****** ****** *)
 
 fun
@@ -661,8 +661,9 @@ d2explst_trup
 // instantiated existentially so that the actual arguments solve them.
 //
 fn
-chainlam_p2at_is_unannotated
-  (p2t: p2at): bool =
+  chainlam_p2at_is_unannotated
+  (p2t: p2at
+  ): bool =
   ( case+ p2t.p2at_node of
   | P2Tvar _ (* plain parameter variable *) => true
   | P2Tany () (* wildcard parameter *) => true
@@ -670,8 +671,9 @@ chainlam_p2at_is_unannotated
   )
 //
 fun
-chainlam_p2atlst_is_all_unannotated
-  (p2ts: p2atlst): bool =
+  chainlam_p2atlst_is_all_unannotated
+  (p2ts: p2atlst
+  ): bool =
   ( case+ p2ts of
   | list_cons (p2t, p2ts) =>
       if chainlam_p2at_is_unannotated (p2t)
@@ -681,8 +683,9 @@ chainlam_p2atlst_is_all_unannotated
   )
 //
 fun
-chainlam_d2exp_is_inline_unannotated_lam
-  (d2e: d2exp): bool =
+  chainlam_d2exp_is_inline_unannotated_lam
+  (d2e: d2exp
+  ): bool =
   ( case+ d2e.d2exp_node of
   | D2Elam_dyn (_(*lin*), _(*npf*), p2ts_arg, _(*body*)) =>
       chainlam_p2atlst_is_all_unannotated (p2ts_arg)
@@ -696,89 +699,74 @@ chainlam_d2exp_is_inline_unannotated_lam
   )
 //
 fun
-chainlam_d23explst_has_inline_unannotated_lam
-  {n:nat} .<n>.
-(
-  d23es: !list_vt (d23exp, n)
-) : bool = let
+  chainlam_d23explst_has_inline_unannotated_lam
+  {n:nat}
+  .<n>.
+  ( d23es: !list_vt (d23exp, n)
+  ) : bool =
+let
 //
-fn
-fopr
-(
-  d23e: !d23exp, found: &int
-) : void = (
+  fn
+    fopr
+    ( d23e: !d23exp
+    , found: &int
+    ) : void =
+    ( case+ d23e of
+    | D23Ed2exp d2e => {
+        val () = if chainlam_d2exp_is_inline_unannotated_lam (d2e) then found := 1
+        prval () = fold@(d23e)
+      }
+    | D23Ed3exp _ => {
+        prval () = fold@(d23e)
+      }
+    ) (* end of [fopr] *)
 //
-case+ d23e of
-| D23Ed2exp d2e => let
-    val () =
-      if chainlam_d2exp_is_inline_unannotated_lam (d2e)
-        then found := 1
-      // end of [if]
-    prval () = fold@(d23e)
-  in
-    // nothing
-  end // end of [D23Ed2exp]
-| D23Ed3exp _ => let
-    prval () = fold@(d23e)
-  in
-    // nothing
-  end // end of [D23Ed3exp]
+  fun
+    aux
+    {n:nat}
+    .<n>.
+    ( d23es: !list_vt (d23exp, n)
+    , found: &int
+    ) : void =
+  ( case+ d23es of
+  | list_vt_nil ((*void*)) => {
+      prval () = fold@(d23es)
+    }
+  | list_vt_cons (!p_d23e, !p_d23es) => {
+      val () = fopr (!p_d23e, found)
+      val () = aux (!p_d23es, found)
+      prval ((*folded*)) = fold@(d23es)
+    }
+  ) // end of [aux]
 //
-) (* end of [fopr] *)
-//
-fun
-aux
-  {n:nat} .<n>.
-(
-  d23es: !list_vt (d23exp, n), found: &int
-) : void = let
-in
-//
-case+ d23es of
-| list_vt_nil
-    ((*void*)) => let
-    prval () = fold@(d23es)
-  in
-    // nothing
-  end // end of [list_vt_nil]
-| list_vt_cons
-    (!p_d23e, !p_d23es) => let
-    val () = fopr (!p_d23e, found)
-    val () = aux (!p_d23es, found)
-    prval ((*folded*)) = fold@(d23es)
-  in
-    // nothing
-  end // end of [list_vt_cons]
-//
-end // end of [aux]
-//
-var found: int = 0
-val () = aux (d23es, found)
+  var found: int = 0
+  val () = aux (d23es, found)
 //
 in
   (found > 0)
 end // end of [chainlam_d23explst_has_inline_unannotated_lam]
 //
 fun
-chainlam_s2exp_has_einvar
-  (s2e: s2exp): bool = let
+  chainlam_s2exp_has_einvar
+  (s2e: s2exp
+  ): bool =
+let
 //
-fun
-auxlst
-  (s2es: s2explst): bool =
-  ( case+ s2es of
-  | list_cons (s2e, s2es) =>
-      if chainlam_s2exp_has_einvar (s2e)
-        then true
-        else auxlst (s2es)
-  | list_nil () => false
-  )
-//
+  fun
+    auxlst
+    (s2es: s2explst
+    ): bool =
+    ( case+ s2es of
+    | list_cons (s2e, s2es) => if chainlam_s2exp_has_einvar (s2e)
+          then true
+          else auxlst (s2es)
+    | list_nil () => false
+    )
+  //
 in
-  case+ s2e.s2exp_node of
+  ( case+ s2e.s2exp_node of
   | S2Einvar _ (* an existential variable: solvable *) => true
-  | S2Eapp (s2e_fun, s2es) =>
-      if chainlam_s2exp_has_einvar (s2e_fun)
+  | S2Eapp (s2e_fun, s2es) => if chainlam_s2exp_has_einvar (s2e_fun)
         then true
         else auxlst (s2es)
   | S2Efun (_(*fc*), _(*lin*), _(*s2fe*), _(*npf*), s2es, s2e_res) =>
@@ -786,6 +774,7 @@ in
         then true
         else auxlst (s2es)
   | _ (* no einvar in this node *) => false
+  )
 end // end of [chainlam_s2exp_has_einvar]
 //
 
@@ -876,6 +865,183 @@ end // end of [d23explst_open_and_add]
 
 (* ****** ****** *)
 
+// [--chainlam]: formal-slot pre-binding pass.
+// Before the sequential DOWN elaboration of arguments, bind the callee's
+// einvar formal slots from every non-lambda actual argument.  Then an
+// inline unannotated lambda argument can be elaborated with its domain
+// already solved, independent of the source order of the arguments.
+
+fun
+  chainlam_prebind_one_s2exp
+  ( locarg: loc_t
+  , s2e_actual: s2exp
+  , s2e_formal: s2exp
+  ) : void =
+let
+  var serr_solve: int = 0
+in
+  $SOL.s2exp_tyleq_solve_err (locarg, s2e_actual, s2e_formal, serr_solve)
+end // end of [chainlam_prebind_one_s2exp]
+
+fun
+  chainlam_is_lam_d3
+  (d3e: d3exp
+  ) : bool =
+let
+  val node = d3e.d3exp_node
+in
+  ( case+ node of
+  | D3Elam_dyn _ => true
+  | D3Elaminit_dyn _ => true
+  | D3Elam_sta _ => true
+  | D3Elam_met _ => true
+  | _ => false
+  )
+end // end of [chainlam_is_lam_d3]
+
+fun
+  chainlam_prebind_if_formal
+  (locarg: loc_t
+  , d3e: d3exp
+  , s2e: s2exp
+  ) : void = {
+  val cond = ($GLOB.the_CHAINLAM_flag_get ()) <> 0
+        && $GLOB.the_CHAINLAM_PROOFARG_flag_get () = 0
+        && chainlam_s2exp_has_einvar (s2e)
+        && not(chainlam_is_lam_d3(d3e))
+  val () = if cond then chainlam_prebind_one_s2exp(locarg, d3e.d3exp_type, s2e)
+} // end of [chainlam_prebind_if_formal]
+
+fun
+  chainlam_s2expopt_get_d2e_var_type
+  ( d2e: d2exp
+  ): s2expopt =
+  ( case+ d2e.d2exp_node of
+  | D2Evar d2v => d2var_get_type(d2v)
+  | _ (* not a variable *) => None ()
+  )
+// end of [chainlam_s2expopt_get_d2e_var_type]
+
+fun
+  chainlam_prebind_d23e_fopr_ptr
+  ( locarg: loc_t
+  , d23e: !d23exp
+  , s2e: s2exp
+  ) : void =
+  ( case+ d23e of
+  | D23Ed2exp d2e => {
+      val () =
+        if (($GLOB.the_CHAINLAM_flag_get ()) > 0 &&
+            chainlam_s2exp_has_einvar (s2e) &&
+            not(chainlam_d2exp_is_inline_unannotated_lam(d2e)))
+        then {
+          val opt = chainlam_s2expopt_get_d2e_var_type(d2e)
+          var serr: int = 0
+          val () =
+                ( case+ opt of
+                | Some s2e_arg => $SOL.s2exp_tyleq_solve_err (locarg, s2e_arg, s2e, serr)
+                | None () => ()
+                )
+        }
+        else ()
+      prval () = fold@(d23e)
+    }
+  | D23Ed3exp d3e => {
+      val () =
+        if (($GLOB.the_CHAINLAM_flag_get ()) > 0 &&
+            chainlam_s2exp_has_einvar (s2e) &&
+            not(chainlam_is_lam_d3(d3e))
+           )
+        then {
+          var serr: int = 0
+          val () = $SOL.s2exp_tyleq_solve_err (locarg, d3exp_get_type(d3e), s2e, serr)
+        }
+        else ()
+      prval () = fold@(d23e)
+    }
+  )
+// end of [chainlam_prebind_d23e_fopr_ptr]
+
+fun
+  chainlam_prebind_d23_aux_ptr
+  {n:nat}
+  .<n>.
+  ( locarg: loc_t
+  , d23es: !list_vt (d23exp, n)
+  , s2es: s2explst
+  ) : void =
+( case+ d23es of
+| list_vt_nil ((*void*)) => {
+    prval () = fold@(d23es)
+  } // end of [list_vt_nil]
+| list_vt_cons (!p_d23e, !p_d23es) => {
+    val () =
+          ( case+ s2es of
+          | list_nil() => ()
+          | list_cons(s2e, s2es_tail) =>
+            let
+              val () = chainlam_prebind_d23e_fopr_ptr(locarg, !p_d23e, s2e)
+            in
+              chainlam_prebind_d23_aux_ptr (locarg, !p_d23es, s2es_tail)
+            end
+          )
+    prval ((*folded*)) = fold@(d23es)
+  } // end of [list_vt_cons]
+) // end of [chainlam_prebind_d23_aux_ptr]
+
+fun
+  chainlam_prebind_d3_aux
+  ( locarg: loc_t
+  , d3es: d3explst
+  , s2es: s2explst
+  ) : void =
+let
+  fn
+    pair
+    ( locarg: loc_t
+    , d3e: d3exp
+    , d3es_tail: d3explst
+    , s2es: s2explst
+    ) : void =
+    ( case+ s2es of
+    | list_nil() => ()
+    | list_cons(s2e, s2es_tail) =>
+      let
+        val () = chainlam_prebind_if_formal(locarg, d3e, s2e)
+      in
+        chainlam_prebind_d3_aux(locarg, d3es_tail, s2es_tail)
+      end
+    )
+in
+  ( case+ d3es of
+  | list_nil() => ()
+  | list_cons(d3e, d3es_tail) => pair(locarg, d3e, d3es_tail, s2es)
+  )
+end // end of [chainlam_prebind_d3_aux]
+
+implement chainlam_prebind_d3_formal_slots
+  (locarg: loc_t
+  , d3es: d3explst
+  , s2es: s2explst
+  ) : void =
+  chainlam_prebind_d3_aux(locarg, d3es, s2es)
+// end of [chainlam_prebind_d3_formal_slots]
+
+
+
+fn
+  chainlam_prebind_d23_formal_slots
+  {n:nat}
+  .<n>.
+  ( locarg: loc_t
+  , d23es: !list_vt (d23exp, n)
+  , s2es: s2explst
+  ) : void =
+  chainlam_prebind_d23_aux_ptr(locarg, d23es, s2es)
+// end of [chainlam_prebind_d23_formal_slots]
+
+(* ****** ****** *)
+
 (*
 //
 // HX-2014-03-02: not used?
@@ -941,14 +1107,16 @@ case+ d23es of
         // so that the einvars of the callee's instantiated type get tied
         // by the actual argument before the following arguments (in
         // particular, an inline unannotated lambda argument) are elaborated
-        val () =
-          if (($GLOB.the_CHAINLAM_flag_get ()) > 0 && chainlam_s2exp_has_einvar (s2e)) then let
-            var serr_solve: int = 0
-          in
-            $SOL.s2exp_tyleq_solve_err (locarg, d3e.d3exp_type, s2e, serr_solve)
-          end // end of [let]
-          else ()
-          // end of [if]
+        val () = if (($GLOB.the_CHAINLAM_flag_get ()) > 0
+                    && chainlam_s2exp_has_einvar (s2e)
+                    )
+              then
+                let
+                  var serr_solve: int = 0
+                in
+                  $SOL.s2exp_tyleq_solve_err (locarg, d3e.d3exp_type, s2e, serr_solve)
+                end // end of [let]
+              else () // end of [if]
         val d3es = aux (locarg, d23es, s2es, err)
       in
         list_cons(d3e, d3es)
@@ -1037,6 +1205,41 @@ end // end of [d2exp_trup_var_mutabl]
 
 (* ****** ****** *)
 
+(* ****** ****** *)
+// [--chainlam]: rigidize a proof argument type by removing S2Einvar wrappers
+// before binding proof formal vars; otherwise existential-opening creates fresh
+// variables whose nat constraints cannot be solved in a proof-function call.
+
+fun
+  s2exp_strip_invar
+  ( s2e0: s2exp
+  ) : s2exp = let
+    fun aux_lst
+      (s2es0: s2explst
+      ) : s2explst =
+      ( case+ s2es0 of
+      | list_cons (s2e, s2es) =>
+        let
+          val s2e1 = s2exp_strip_invar (s2e)
+          val s2es1 = aux_lst (s2es)
+        in
+          list_cons (s2e1, s2es1)
+        end // end of [list_cons]
+      | list_nil () => list_nil () // end of [list_nil]
+      )
+    in
+    ( case+ s2e0.s2exp_node of
+    | S2Einvar (s2e1) =>  s2exp_strip_invar (s2e1)
+    | S2Eapp (s2e_fun, s2es_arg) =>
+      let
+        val s2es_arg1 = aux_lst (s2es_arg)
+      in
+        s2exp_app_srt (s2e0.s2exp_srt, s2e_fun, s2es_arg1)
+      end // end of [S2Eapp]
+    | _ => s2e0
+    )
+  end // end of [s2exp_strip_invar]
+
 implement
 d2exp_trup_var_nonmut
   (loc0, d2v) = let
@@ -1052,6 +1255,12 @@ val () = (
 *)
 val s2qs = d2var_get_decarg (d2v)
 val s2e0 = d2var_get_type_some (loc0, d2v)
+// [--chainlam]: proof-call arguments must be rigid view types; strip Einvar
+// wrappers here so the dependent-types solver does not open an existential
+// variable for a nat-valued proof formal.
+val s2e_rig = if $GLOB.the_CHAINLAM_PROOFARG_flag_get () <> 0
+      then s2exp_strip_invar (s2e0)
+      else s2e0
 //
 val () =
 if (
@@ -1084,22 +1293,23 @@ end // end of [if] // end of [val]
 in
 //
 case+ s2qs of
-| list_nil () => d3exp_var (loc0, s2e0, d2v)
+| list_nil () => d3exp_var (loc0, s2e_rig, d2v)
 | list_cons _ => let
     var err: int = 0
     val locsarg =
       $LOC.location_rightmost (loc0)
-    // [--chainlam]: in body mode every template instantiation must produce
-    // solvable einvars: rigid quantifier dups created under an einvar's scope
-    // permanently record that scope and then veto solving it (skolem-escape)
-    val (s2e_tmp, s2ess) =
-      (if $GLOB.the_CHAINLAM_flag_get () <> 0 &&
-          $GLOB.the_CHAINLAM_bodyflag_get () <> 0
-        then s2exp_tmp_instantiate_rest_exi (s2e0, locsarg, s2qs, err)
-        else s2exp_tmp_instantiate_rest (s2e0, locsarg, s2qs, err)
-       : (s2exp, t2mpmarglst))
+    // [--chainlam]: instantiate the variable's template quantifiers
+    // rigidly (non-exi): einvar instantiation produces einvars whose
+    // nat constraints are unsolvable at proof-application sites.
+    val (s2e_tmp, s2ess) = s2exp_tmp_instantiate_rest (s2e0, locsarg, s2qs, err)
   in
-    d3exp_tmpvar (loc0, s2e_tmp, d2v, s2ess)
+    if $GLOB.the_CHAINLAM_PROOFARG_flag_get () <> 0
+      then d3exp_var (loc0, s2e_rig, d2v)
+      else if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+              s2exp_is_lin2 (s2e_tmp)
+        then d3exp_var (loc0, s2e0, d2v)
+        else d3exp_tmpvar (loc0, s2e_tmp, d2v, s2ess)
+    // end of [if]
   end // end of [list_cons]
 //
 end // end of [d2exp_trup_var_nonmut]
@@ -1122,6 +1332,10 @@ d2exp_trup_cst
   (loc0, d2c) = let
   val s2e = d2cst_get_type (d2c)
   val s2qs = d2cst_get_decarg (d2c)
+  // [--chainlam]: proof functions are compile-time lemma checks: keep
+  // their template quantifiers rigid (einvar instantiation is not
+  // inferable and can create unsolvable arithmetic preconditions)
+  val cst_is_prfun = dcstkind_is_prfun (d2cst_get_kind (d2c))
 in
 //
 case+ s2qs of
@@ -1130,15 +1344,21 @@ case+ s2qs of
     var err: int = 0
     val locsarg =
       $LOC.location_rightmost (loc0)
-    // [--chainlam]: see the comment at [d2exp_trup_var_nonmut]
-    val (s2e_tmp, s2ess) =
-      (if $GLOB.the_CHAINLAM_flag_get () <> 0 &&
-          $GLOB.the_CHAINLAM_bodyflag_get () <> 0
-        then s2exp_tmp_instantiate_rest_exi (s2e, locsarg, s2qs, err)
-        else s2exp_tmp_instantiate_rest (s2e, locsarg, s2qs, err)
-       : (s2exp, t2mpmarglst))
-  in
-    d3exp_tmpcst (loc0, s2e_tmp, d2c, s2ess)
+in
+    if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 && cst_is_prfun
+      then d3exp_cst (loc0, s2e, d2c)
+      else let
+        val (s2e_tmp, s2ess) =
+          if ($GLOB.the_CHAINLAM_flag_get ()) <> 0
+            then s2exp_tmp_instantiate_rest_exi
+                 (s2e, locsarg, s2qs, err)
+            else s2exp_tmp_instantiate_rest
+                 (s2e, locsarg, s2qs, err)
+          // end of [if]
+      in
+        d3exp_tmpcst (loc0, s2e_tmp, d2c, s2ess)
+      end
+    // end of [if]
   end // end of [list_cons]
 //
 end // end of [d2cst_trup_cst]
@@ -1149,14 +1369,13 @@ end // end of [d2cst_trup_cst]
 // a template cst are instantiated to solvable einvars (see the comment on
 // [s2exp_tmp_instantiate_rest_exi])
 //
-implement
-d2exp_trup_cst_exi
-  (loc0, d2c) = let
+implement d2exp_trup_cst_exi (loc0, d2c) =
+let
   val s2e = d2cst_get_type (d2c)
   val s2qs = d2cst_get_decarg (d2c)
 in
 //
-case+ s2qs of
+( case+ s2qs of
 | list_nil () => d3exp_cst (loc0, s2e, d2c)
 | list_cons _ => let
     var err: int = 0
@@ -1168,6 +1387,7 @@ case+ s2qs of
     d3exp_tmpcst (loc0, s2e_tmp, d2c, s2ess)
   end // end of [list_cons]
 //
+)
 end // end of [d2cst_trup_cst_exi]
 
 (* ****** ****** *)
@@ -1249,7 +1469,12 @@ d2exp_trup_extfcall
   (d2e0) = let
   val loc0 = d2e0.d2exp_loc
   val-D2Eextfcall (s2e, _fun, _arg) = d2e0.d2exp_node
+  val proofarg0 = $GLOB.the_CHAINLAM_PROOFARG_flag_get ()
+  val () =
+    if $GLOB.the_CHAINLAM_flag_get () <> 0 && s2exp_is_prf (s2e)
+      then $GLOB.the_CHAINLAM_PROOFARG_flag_set (1) else ()
   val d3es_arg = d2explst_trup (_arg)
+  val () = $GLOB.the_CHAINLAM_PROOFARG_flag_set (proofarg0)
   val ((*void*)) = auxcheck (loc0, d3es_arg)
 in
   d3exp_extfcall (loc0, s2e, _fun, d3es_arg)
@@ -1451,9 +1676,16 @@ implement
 d2exp_trup_applst
   (d2e0, d2e_fun, d2as_arg) = let
   val d3e_fun = d2exp_trup (d2e_fun)
+  val proofarg0 = $GLOB.the_CHAINLAM_PROOFARG_flag_get ()
+  val () =
+    if $GLOB.the_CHAINLAM_flag_get () <> 0 &&
+       s2exp_is_prf (d3e_fun.d3exp_type)
+      then $GLOB.the_CHAINLAM_PROOFARG_flag_set (1) else ()
   val () = d3exp_open_and_add (d3e_fun)
+  val d3e = d23exp_trup_applst (d2e0, d3e_fun, d2as_arg)
+  val () = $GLOB.the_CHAINLAM_PROOFARG_flag_set (proofarg0)
 in
-  d23exp_trup_applst (d2e0, d3e_fun, d2as_arg)
+  d3e
 end // end of [d2exp_trup_applst]
 
 (* ****** ****** *)
@@ -1538,8 +1770,7 @@ d23exp_trup_app23
   val
     chainlam_flag_on = ($GLOB.the_CHAINLAM_flag_get ()): int
   val
-    chainlam_lam_arg =
-      chainlam_d23explst_has_inline_unannotated_lam (d23es_arg)
+    chainlam_lam_arg = chainlam_d23explst_has_inline_unannotated_lam (d23es_arg)
   val (s2e_fun, s2ps) = (
     if (chainlam_flag_on > 0 && chainlam_lam_arg)
       then (
@@ -1549,9 +1780,7 @@ d23exp_trup_app23
     // arguments at the application site
         s2exp_eximet_instantiate_all (s2e_fun, locsarg, err)
       )
-      else (
-        s2exp_unimet_instantiate_all (s2e_fun, locsarg, err)
-      )
+      else s2exp_unimet_instantiate_all (s2e_fun, locsarg, err)
   ) : (s2exp, s2explst_vt) // end of [val]
   val () = trans3_env_add_proplst_vt (locsarg, s2ps)
 (*
@@ -1597,6 +1826,10 @@ case+ s2e_fun.s2exp_node of
     val loc_app = $LOC.location_combine (loc_fun, locarg)
     val s2es_fun_arg =
       s2fun_opninv_and_add (locarg, s2es_fun_arg, s2e_fun_res)
+    // [--chainlam]: pre-bind formal einvar slots from non-lambda actuals
+    // before DOWN elaboration so an inline unannotated lambda argument
+    // does not depend on the source order of the arguments.
+    val () = chainlam_prebind_d23_formal_slots (locarg, d23es_arg, s2es_fun_arg)
     val d3es_arg = d23explst_trdn (locarg, d23es_arg, s2es_fun_arg)
 //
     val (
@@ -2174,7 +2407,27 @@ val () = the_d2varenv_pop(pfd2v | (*none*))
 val () = the_pfmanenv_pop(pfman | (*none*))
 val () = the_lamlpenv_pop(pflamlp | (*none*))
 //
-val () = trans3_env_pop_and_add_main(pfenv | loc0)
+// [--chainlam]: inside the UP-elaborated body of a chain lambda the whole
+// UP elaboration of this inner lambda is throwaway: the DOWN phase
+// re-elaborates the lambda (and its nested lambda arguments) against the
+// callee's formal domain, where lambda-parameter variables carry their real
+// types. Adding the UP-pass constraints here duplicates every obligation
+// and, worse, adds junk: static statements (prval lemma checks) elaborated
+// in the UP pass see the parameter variables' einvar placeholder types and
+// their preconditions become unsolvable main constraints. Discard the
+// UP-pass constraint list; the DOWN pass re-collects them faithfully.
+val () =
+  if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
+     ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+  then
+    let
+      val s3is = trans3_env_pop (pfenv | (*none*))
+    in
+      list_vt_free (s3is)
+    end
+  else
+    trans3_env_pop_and_add_main (pfenv | loc0)
+  // end of [if]
 //
 val s2e_res = d3e_body.d3exp_type
 //

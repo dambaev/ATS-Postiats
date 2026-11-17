@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -50,6 +50,7 @@ staload _(*anon*) = "./pats_utils.dats"
 
 staload
 CNTR = "./pats_counter.sats"
+staload GLOB = "./pats_global.sats"
 staload STMP = "./pats_stamp.sats"
 typedef stamp = $STMP.stamp
 overload compare with $STMP.compare_stamp_stamp
@@ -95,7 +96,7 @@ in (* in of [local] *)
 implement
 s2Var_make_srt (loc, s2t) = let
 //
-val cnt = 
+val cnt =
 $CNTR.counter_getinc (the_s2Var_name_counter)
 //
 val stamp = $STMP.s2Var_stamp_make ((*void*))
@@ -181,10 +182,94 @@ implement
 s2Var_get_link (s2V) = let
   val (vbox pf | p) = ref_get_view_ptr (s2V) in p->s2Var_link
 end // end of [s2Var_get_link]
+implement s2Var_get_svar (s2V) =
+let
+  val (vbox pf | p) = ref_get_view_ptr (s2V)
+in
+  p->s2Var_svar
+end // end of [s2Var_get_svar]
 implement
-s2Var_set_link (s2V, link) = let
-  val (vbox pf | p) = ref_get_view_ptr (s2V) in p->s2Var_link := link
-end // end of [s2Var_set_link]
+s2Var_set_svar (s2V, xopt) = let
+  val (vbox pf | p) = ref_get_view_ptr (s2V)
+in
+  p->s2Var_svar := xopt
+end // end of [s2Var_set_svar]
+implement
+s2Var_set_link (s2V, link) = {
+  // [--chainlam-exp]: self-var expression captured before the view-pointer
+  // is taken (see the flip below)
+  val s2e_self = s2exp_Var (s2V)
+  val (vbox pf | p) = ref_get_view_ptr (s2V)
+  val cnt = $CNTR.count_get_int (s2Var_get_cnt (s2V))
+  // [--chainlam]: when a variable with bounds is linked to another
+  // variable, propagate its bounds to the target before linking
+  val () = $effmask_ref
+        ( if $GLOB.the_CHAINLAM_flag_get () <> 0
+          then
+            ( case+ link of
+            | Some (s2e_link) => {
+                val s2V2 =
+                      ( case+ s2e_link.s2exp_node of
+                      | S2EVar (s2V2) => s2V2
+                      | _ (*non-S2EVar*) => s2V
+                      )
+                val () = if s2V != s2V2 then {
+                        val lbs = s2Var_get_lbs (s2V)
+                        val () = s2Var_set_lbs (s2V, list_nil ())
+                        val lbs2 = list_append (s2Var_get_lbs (s2V2), lbs)
+                        val () = s2Var_set_lbs (s2V2, lbs2)
+                        val ubs = s2Var_get_ubs (s2V)
+                        val () = s2Var_set_ubs (s2V, list_nil ())
+                        val ubs2 = list_append (s2Var_get_ubs (s2V2), ubs)
+                        val () = s2Var_set_ubs (s2V2, ubs2)
+                      }
+                      else ()
+              } // end of [let]
+            | _ (*non-S2EVar link*) => ()
+            )
+          else ()
+          // end of [if]
+        ) // end of [val]
+  // [--chainlam-exp]: keep the link orientation of the non-chainlam solver:
+  // a freshly created (higher-count) variable must link *into* an older
+  // unlinked variable, never the other way around -- the hypothesis props
+  // speak about the older variable and the solver resolves goals into it
+  val chainlam_on = $effmask_ref ($GLOB.the_CHAINLAM_flag_get ())
+  val () = if chainlam_on <> 0
+        then
+          let
+            val flip = $effmask_ref
+                  ( case+ link of
+                  | Some (s2e_link) =>
+                    ( case+ s2e_link.s2exp_node of
+                    | S2EVar (s2V2) =>
+                      let
+                        val cnt2 = $CNTR.count_get_int (s2Var_get_cnt (s2V2))
+                        val unlinked = $effmask_ref
+                                ( case+ s2Var_get_link (s2V2) of
+                                | None () => true
+                                | Some _ (*linked*) => false
+                                )
+                      in
+                        (s2V2 != s2V) && (cnt2 > cnt) && unlinked
+                      end // end of [let]
+                    | _ (*non-S2EVar*) => false
+                    )
+                  | _ (*non-Var link*) => false
+                  )
+          in
+            if flip
+            then
+              let
+                val Some (s2e_link) = link
+                val-S2EVar (s2V2) = s2e_link.s2exp_node
+              in
+                $effmask_ref (s2Var_set_link (s2V2, Some (s2e_self)))
+              end // end of [let]
+            else (p->s2Var_link := link)
+          end // end of [let]
+        else (p->s2Var_link := link)
+} // end of [s2Var_set_link]
 
 implement
 s2Var_get_szexp (s2V) = let

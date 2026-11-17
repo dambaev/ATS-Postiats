@@ -265,21 +265,39 @@ end // end of [stasub_make_svarlst]
 
 // [--chainlam]: effect-sorted variables are not inferable and must not flow
 // into the effect signature of the enclosing function: they stay rigid when
-// quantifiers are instantiated to einvars
+// quantifiers are instantiated to einvars. Numeric (int/nat), property (pos),
+// view and viewtype quantifiers are likewise kept rigid: their sorts carry
+// arithmetic or view constraints that an unsolved einvar cannot satisfy.
+// Inference-sort quantifiers (type/t0ype) are kept rigid here as well: when
+// such a variable flows into dependent arithmetic constraints of the callee,
+// an einvar binding again leaves the constraint unsolved.
 //
 fun
-chainlam_is_eff_srt (s2t: s2rt) : bool =
+chainlam_is_rigid_sym (sym: symbol) : bool =
+( $SYM.eq_symbol_symbol (sym, $SYM.symbol_EFF)
+|| $SYM.eq_symbol_symbol (sym, $SYM.symbol_INT)
+|| $SYM.eq_symbol_symbol (sym, $SYM.symbol_PROP)
+|| $SYM.eq_symbol_symbol (sym, $SYM.symbol_TYPE)
+|| $SYM.eq_symbol_symbol (sym, $SYM.symbol_T0YPE)
+|| $SYM.eq_symbol_symbol (sym, $SYM.symbol_VIEW)
+|| $SYM.eq_symbol_symbol (sym, $SYM.symbol_VIEWTYPE)
+)
+//
+fun
+chainlam_is_rigid_srt (s2t: s2rt) : bool =
 ( case+ s2t of
   | S2RTbas s2tb =>
       (case+ s2tb of
-       | S2RTBASpre (sym) => $SYM.eq_symbol_symbol (sym, $SYM.symbol_EFF)
+       | S2RTBASpre (sym) => chainlam_is_rigid_sym (sym)
+       | S2RTBASimp (_, sym) => chainlam_is_rigid_sym (sym)
        | _ => false)
   | _ => false
 )
 //
-// [--chainlam]: bind quantified variables to solvable einvars (effect-sorted
-// variables stay rigid); used by the existential instantiation and by the
-// existential openers under chain-lambda body mode
+// [--chainlam]: bind quantified variables to solvable einvars (rigid-sort
+// variables (effect, numeric, property, view, viewtype) stay rigid); used by
+// the existential instantiation and by the existential openers under
+// chain-lambda body mode
 //
 fun
 stasub_s2varlst_bind_einvars
@@ -290,7 +308,7 @@ stasub_s2varlst_bind_einvars
   | list_cons (s2v, s2vs) => let
       val s2e0 = s2exp_Var_make_var (locarg, s2v)
       val () =
-        (if chainlam_is_eff_srt (s2var_get_srt s2v)
+        (if chainlam_is_rigid_srt (s2var_get_srt s2v)
            then stasub_add (sub, s2v, s2e0)
            else stasub_add (sub, s2v, s2exp_invar (s2e0))
           : void)
@@ -458,7 +476,7 @@ case+ s2vs of
     val s2e0 =
       s2exp_Var_make_var (locarg, s2v)
     val s2e =
-      (if chainlam_is_eff_srt (s2var_get_srt s2v)
+      (if chainlam_is_rigid_srt (s2var_get_srt s2v)
          then s2e0 else s2exp_invar (s2e0))
     val () = stasub_add (sub, s2v, s2e)
     val res = list_vt_cons (s2e, res)
@@ -632,8 +650,24 @@ auxbind_met
   | list_cons (s2e, s2es) => (
       case+ s2e.s2exp_node of
       | S2Evar s2v => let
-          val () =
-            stasub_add (sub, s2v, s2exp_invar (s2exp_var s2v))
+          // [--chainlam]: metfun template params with non-inferable sorts
+          // (effect, numeric, property, view, viewtype, and the inference
+          // sorts when they carry arithmetic props) must stay rigid; binding
+          // them to einvars makes the nat-valued propositions and view slots
+          // of the callee's type unsolvable
+          val s2rt = s2var_get_srt (s2v)
+          val s2e_bind =
+                ( if $GLOB.the_CHAINLAM_flag_get () <> 0
+                    then
+                      ( if $GLOB.the_CHAINLAM_PROOFARG_flag_get () <> 0
+                          then s2exp_var s2v
+                          else if chainlam_is_rigid_srt (s2rt)
+                               then s2exp_var s2v
+                               else s2exp_invar (s2exp_var s2v)
+                      ) // end of [inner if]
+                    else s2exp_invar (s2exp_var s2v)
+                )
+          val () = stasub_add (sub, s2v, s2e_bind)
         in
           auxbind_met (sub, locarg, s2es)
         end
@@ -2193,7 +2227,9 @@ val s2e0 = s2hnf2exp (s2f0)
 in
 //
 if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-   ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+   ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0 &&
+   $GLOB.the_CHAINLAM_PROOFARG_flag_get () = 0 &&
+   s2exp_is_nonprf (s2e0)
 then let
   // [--chainlam]: existentials opened while a chain-lambda body is elaborated
   // must open as solvable einvars: rigid quantifiers get a recorded scope and
@@ -2247,7 +2283,9 @@ s2hnf_opn1exi_and_add
 in
 //
 if ($GLOB.the_CHAINLAM_flag_get ()) <> 0 &&
-   ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0
+   ($GLOB.the_CHAINLAM_bodyflag_get ()) <> 0 &&
+   $GLOB.the_CHAINLAM_PROOFARG_flag_get () = 0 &&
+   s2exp_is_nonprf (s2e0)
 then let
   // [--chainlam]: open the existential with solvable einvars: see the
   // comment at [s2hnf_opnexi_and_add]

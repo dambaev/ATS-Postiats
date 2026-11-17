@@ -924,6 +924,12 @@ fun s2Var_get_srt (s2V: s2Var):<> s2rt
 fun s2Var_get_link (s2V: s2Var): s2expopt
 fun s2Var_set_link (s2V: s2Var, link: s2expopt): void
 //
+// (--chainlam): cached s2var view of an (possibly unlinked) s2Var,
+// used to linearize S2EVar atoms in the constraint solver
+//
+fun s2Var_get_svar (s2V: s2Var): s2varopt
+fun s2Var_set_svar (s2V: s2Var, xopt: s2varopt): void
+//
 // HX: this is for occurchecks
 //
 fun s2Var_get_sVarlst (s2V: s2Var): s2Varlst
