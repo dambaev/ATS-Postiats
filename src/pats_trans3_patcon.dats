@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -56,6 +56,8 @@ implement prerr_FILENAME<> () = prerr "pats_trans3_patcon"
 staload "./pats_staexp2.sats"
 staload "./pats_staexp2_util.sats"
 staload "./pats_staexp2_error.sats"
+
+staload GLOB = "./pats_global.sats"
 
 (* ****** ****** *)
 
@@ -409,6 +411,21 @@ val-P2Tcon (
 val s2c = d2con_get_scst (d2c)
 val s2e = s2hnf_opnexi_and_add (loc0, s2f0)
 val s2f = s2exp2hnf (s2e)
+val s2e = s2hnf2exp (s2f)
+(* [--chainlam]: an INV(einvar)-wrapped type can reach here as the
+   subject type of a pattern (the chain result types are stored with
+   the einvar wrappers; the wrapped variable carries the solution).
+   Peel the einvar wrapper so that the content can be head-normalized
+   through its solution. *)
+val s2f =
+      ( if $GLOB.the_CHAINLAM_flag_get () > 0
+        then
+          ( case+ s2e.s2exp_node of
+          | S2Einvar s2e11 (* peeled *) => s2exp2hnf (s2e11)
+          | _ (* not einvar *) => s2f
+          )
+        else s2f (* end of [if] *)
+      ) (* end of [val] *)
 val s2e = s2hnf2exp (s2f)
 val s2f_head = s2hnf_get_head (s2f)
 val s2e_head = s2hnf2exp (s2f_head)
