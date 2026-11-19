@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-**
+** 
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-**
+** 
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -82,119 +82,6 @@ staload "./pats_trans3_env.sats"
 (* ****** ****** *)
 
 staload "./pats_staexp2_solve.sats"
-
-staload GLOB = "./pats_global.sats"
-//
-(* [--chainlam]: tysub(solve) records solutions primarily in the szexp
-   field, which the HNF-reading consumers of the elaborator do not see
-   (they only follow the links). To let the tysub-solved variables become
-   visible to the elaborator without spoiling the trial semantics of the
-   overload resolution, the link-setting operations are accumulated in a
-   pending list and get applied only when the enclosing tysub call
-   succeeds as a whole. *)
-(* A link is only recorded for a ground solution (one that contains no
-   not-yet-solved variable). Linking a solution that still mentions
-   unsolved variables is what makes variable-to-variable cycles possible
-   (var1 linked to an expression mentioning var2, which later gets linked
-   back to var1), and following such a cycle drives the HNF machinery
-   into non-termination. A ground solution, on the other hand, refers at
-   worst to already-solved variables, whose own solutions are ground too,
-   so no cycle can arise through it. *)
-fun
-  tysub_exp_ground
-  (s2e: s2exp
-  ): bool =
-  ( case+ s2e.s2exp_node of
-  //
-  | S2Ecst _ => true
-  | S2Eint _ => true
-  | S2Eintinf _ => true
-  | S2Efloat _ => true
-  | S2Estring _ => true
-  //
-  | S2Eextype (_name, s2ess) => tysub_explstlst_ground (s2ess)
-  | S2Eextkind (_name, s2ess) => tysub_explstlst_ground (s2ess)
-  //
-  | S2EVar s2V =>
-      ( case+ s2Var_get_link (s2V) of
-      | Some s2e1 => tysub_exp_ground (s2e1)
-      | None () (* unsolved *) => false
-      )
-    // end of [S2EVar]
-  | S2Einvar s2e1 => tysub_exp_ground (s2e1)
-  //
-  | S2Eapp (s2e_f, s2es) =>
-    ( tysub_exp_ground (s2e_f) && tysub_explst_ground (s2es) )
-  | S2Etyarr (s2e_elt, _dim) => tysub_exp_ground (s2e_elt)
-  //
-  | _ (* rest: treated as non-ground *) => false
-  ) // end of [tysub_exp_ground]
-and
-  tysub_explst_ground
-  ( s2es: s2explst
-  ): bool =
-  ( case+ s2es of
-  | list_cons (s2e, s2es) => tysub_exp_ground (s2e) && tysub_explst_ground (s2es)
-  | list_nil () => true
-  ) // end of [tysub_explst_ground]
-and
-  tysub_explstlst_ground
-  ( s2ess: s2explstlst
-  ): bool =
-  ( case+ s2ess of
-  | list_cons (s2es, s2ess) =>   tysub_explst_ground (s2es)
-                              && tysub_explstlst_ground (s2ess)
-  | list_nil () => true
-  ) // end of [tysub_explstlst_ground]
-//
-typedef tysub_linkpair = @(s2Var, s2exp)
-//
-val the_tysub_pending = ref_make_elt<List(tysub_linkpair)>(list_nil())
-val the_tysub_pndlen = ref_make_elt<int>(0)
-val the_tysub_depth = ref_make_elt<int>(0)
-//
-fun
-  tysub_link_add
-  ( s2V: s2Var
-  , s2e: s2exp
-  ): void =
-  ( if tysub_exp_ground (s2e)
-    then
-    (
-      !the_tysub_pending := list_cons((s2V, s2e), !the_tysub_pending);
-      !the_tysub_pndlen := !the_tysub_pndlen + 1
-    )
-  ) // end of [tysub_link_add]
-//
-fun
-  tysub_pending_commit
-  (n: int
-  ): void =
-  ( if (n > 0) then
-    ( case+ !the_tysub_pending of
-    | list_cons (x, xs) => let
-        val (s2V, s2e) = x
-        val () = !the_tysub_pending := xs
-        val () = !the_tysub_pndlen := !the_tysub_pndlen - 1
-        val () =
-              ( case+ s2Var_get_link (s2V) of
-              | None () (* unsolved *) => s2Var_set_link (s2V, Some s2e)
-              | Some _ (* keep the existing *) => ((*void*))
-              )
-      in
-        tysub_pending_commit (n-1)
-      end
-    | list_nil () => ((*void*))
-    )
-  ) // end of [tysub_pending_commit]
-//
-fun
-  tysub_pending_discard
-  (
-  ): void =
-  ( !the_tysub_pending := list_nil () ;
-    !the_tysub_pndlen := 0
-  ) // end of [tysub_pending_discard]
 
 (* ****** ****** *)
 
@@ -625,7 +512,7 @@ end // end of [val]
 } // end of [if] // end of [val]
 //
 in
-  // nothing
+  // nothing  
 end // end of [s2hnf_equal_solve_lVar_err_nck]
 
 (* ****** ****** *)
@@ -1271,7 +1158,6 @@ println!
 //
 val
 s2e2 = s2hnf2exp(s2f2)
-//
 val () =
 s2Var_s2exp_srtck_err(loc0, s2V1, s2e2, err)
 //
@@ -1280,17 +1166,6 @@ val () = let
 in
   s2Var_merge_szexp_err(loc0, s2V1, s2ze2, err)
 end // end of [val]
-//
-(* [--chainlam]: make the tysub solution visible to HNF-reading
-   consumers (pattern elaboration, etc.), mirroring what the
-   equal-solve path does with s2Var_set_link. The link is queued
-   as pending: it is applied only when the enclosing tysub call
-   succeeds and only when the variable is still unsolved. *)
-val () =
-( if ($GLOB.the_CHAINLAM_flag_get () > 0)
-  then tysub_link_add (s2V1, s2e2)
-  else ((*void*))
-) // end of [val]
 //
 val () = let
   val lbs = s2Var_get_lbs(s2V1)
@@ -1330,7 +1205,6 @@ s2hnf_tyleq_solve_rVar_err
 //
 val
 s2e1 = s2hnf2exp(s2f1)
-//
 val () =
 s2Var_s2exp_srtck_err(loc0, s2V2, s2e1, err)
 //
@@ -1339,14 +1213,6 @@ val () = let
 in
   s2Var_merge_szexp_err(loc0, s2V2, s2ze1, err)
 end // end of [val]
-//
-(* [--chainlam]: see the comment above: set the link so that
-   the tysub solution becomes visible to HNF-reading consumers. *)
-val () =
-( if ($GLOB.the_CHAINLAM_flag_get () > 0)
-  then tysub_link_add (s2V2, s2e1)
-  else ((*void*))
-) // end of [val]
 //
 val () = let
   val ubs = s2Var_get_ubs(s2V2)
@@ -1766,7 +1632,7 @@ if
 then () where
 {
 //
-  val () =
+  val () = 
   the_staerrlst_add
   (STAERR_s2exp_tyleq(loc0, s2e10, s2e20))
 //
@@ -1781,41 +1647,11 @@ s2exp_tyleq_solve_err
 (
   loc0, s2e10, s2e20, err
 ) = let
-//
-val err0 = err
-//
-val chainlam_on =
-  ($GLOB.the_CHAINLAM_flag_get ()) > 0
-//
-(* [--chainlam]: tysub calls are nested (resolving one variable often
-   descends into tysub on its solution). Trial semantics are per
-   outermost call only: the links queued during the whole nested
-   subtree get committed when the outermost call succeeds as a whole
-   and discarded when it fails. *)
-val () =
-( if chainlam_on then !the_tysub_depth := !the_tysub_depth + 1 )
-//
-val s2f10 = s2exp2hnf(s2e10)
-and s2f20 = s2exp2hnf(s2e20)
-//
-val () =
-  s2hnf_tyleq_solve_err(loc0, s2f10, s2f20, err)
-//
-val () =
-( if chainlam_on then
-  (
-    !the_tysub_depth := !the_tysub_depth - 1
-    ;
-    if !the_tysub_depth = 0 then
-      ( if (err > err0)
-        then tysub_pending_discard ()
-        else tysub_pending_commit (!the_tysub_pndlen)
-      )
-  )
-)
-//
+  val err0 = err
+  val s2f10 = s2exp2hnf(s2e10)
+  and s2f20 = s2exp2hnf(s2e20)
 in
-  // nothing
+  s2hnf_tyleq_solve_err(loc0, s2f10, s2f20, err)
 end // end of [s2exp_tyleq_solve_err]
 
 (* ****** ****** *)
@@ -1837,7 +1673,7 @@ case+ s2es1 of
 | list_nil() =>
   (
   case+ s2es2 of
-  | list_nil () => 0 | list_cons _ => ~1
+  | list_nil () => 0 | list_cons _ => ~1 
   ) // end of [list_nil]
 | list_cons(s2e1, s2es1) =>
   (
@@ -1869,7 +1705,7 @@ val () =
 val () =
   the_staerrlst_add(STAERR_s2explst_length(loc0, sgn))
 //
-} // end of [val]
+} // end of [val] 
 in
   // nothing
 end // end of [s2explst_tyleq_solve_err]
@@ -2014,7 +1850,7 @@ loop = s2hnf_tyleq_solve_lbs_err
 (*
 val () = let
 //
-val lbs =
+val lbs = 
 list_map_fun
 ( lbs
 , lam lb =<1> s2VarBound_get_val(lb)
@@ -2224,7 +2060,7 @@ s2e2.s2exp_node
    S2Evar s2v2) => let
     val sgn = compare_s2var_s2var(s2v1, s2v2)
   in
-    case+ sgn of
+    case+ sgn of 
     | _ when sgn > 0 =>
         trans3_env_hypadd_bind(loc0, s2v1, s2f2)
     | _ when sgn < 0 =>
@@ -2286,7 +2122,7 @@ s2explst_hypequal_solve
 val () =
 println!
   ("s2explst_hypequal_solve: s2es1 = ", s2es1)
-val () =
+val () = 
 println!
   ("s2explst_hypequal_solve: s2es2 = ", s2es2)
 *)

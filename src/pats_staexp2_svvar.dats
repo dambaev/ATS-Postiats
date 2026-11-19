@@ -261,7 +261,7 @@ s2Var_set_link (s2V, link) = {
             if flip
             then
               let
-                val-Some (s2e_link) = link (* otherwise flip is false*)
+                val Some (s2e_link) = link
                 val-S2EVar (s2V2) = s2e_link.s2exp_node
               in
                 $effmask_ref (s2Var_set_link (s2V2, Some (s2e_self)))

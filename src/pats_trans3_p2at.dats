@@ -1355,24 +1355,13 @@ s2e.s2exp_node of
       let
         // [--chainlam]: when a record pattern is being checked against a
         // not-yet-solved type variable (as happens for a named unannotated
-        // lambda value), synthesize the record type from the pattern, solve
-        // the variable to it, and check the pattern against the synthesized
-        // type. Solving the variable here is what keeps the pattern piece
-        // variables linked to the record fields: when the real record type
-        // arrives at the use site, tysub descends into the synthesized record
-        // and solves each piece variable with the real field type.
+        // lambda value), synthesize the record type from the pattern and check
+        // the pattern against it. The type variable itself is deliberately left
+        // unsolved: merging the synthesized type into it would block the real
+        // record type from being merged into it later at the use site.
         val s2e_syn = p2at_syn_type (p2t0)
-        var serr : int = 0
-        val () = $SOL.s2exp_tyleq_solve_err (loc0, s2e, s2e_syn, serr)
       in
-        if serr > 0
-          then p3at_errpat (loc0, s2e) where {
-              val () = prerr_error3_loc (loc0)
-              val () = prerrln! (": the tuple/record pattern is ill-typed.")
-              val s2e0 = s2hnf2exp (s2f0)
-              val ((*void*)) = the_trans3errlst_add (T3E_p2at_trdn (p2t0, s2e0))
-            } // end of [where]
-          else p2at_trdn_rec (p2t0, s2exp2hnf (s2e_syn))
+        p2at_trdn_rec (p2t0, s2exp2hnf (s2e_syn))
       end
     else p3at_errpat (loc0, s2e) where {
         val () = prerr_error3_loc (loc0)
