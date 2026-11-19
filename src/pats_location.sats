@@ -127,6 +127,13 @@ fun
 prerr_location (loc: location): void
 fun
 fprint_location (out: FILEref, loc: location): void
+(*
+** Error-header printing:
+** with [--std-error-header], emit [file:line:col];
+** otherwise print the range form.
+*)
+fun
+fprint_location_errhdr (out: FILEref, loc: location): void
 //
 overload print with print_location
 overload prerr with prerr_location

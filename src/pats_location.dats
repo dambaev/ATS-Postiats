@@ -211,19 +211,24 @@ print_location
   (loc) = fprint_location(stdout_ref, loc)
 //
 implement
-prerr_location
-  (loc) =
+fprint_location_errhdr
+  (out, loc) =
 if ($GLOB.the_STD_ERROR_HEADER_get ()) <> 0 then let
-  val () = $FIL.fprint_filename_full (stderr_ref, loc.filename)
-  val () = fprint_string (stderr_ref, ":")
-  val () = fprint_int (stderr_ref, loc.beg_nrow + 1)
-  val () = fprint_string (stderr_ref, ":")
-  val () = fprint_int (stderr_ref, loc.beg_ncol + 1)
+  val () = $FIL.fprint_filename_full (out, loc.filename)
+  val () = fprint_string (out, ":")
+  val () = fprint_int (out, loc.beg_nrow + 1)
+  val () = fprint_string (out, ":")
+  val () = fprint_int (out, loc.beg_ncol + 1)
 in
   // nothing
 end else
-  fprint_location (stderr_ref, loc)
+  fprint_location (out, loc)
 // end of [if]
+//
+implement
+prerr_location
+  (loc) =
+  fprint_location_errhdr (stderr_ref, loc)
 //
 (* ****** ****** *)
 
