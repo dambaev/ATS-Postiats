@@ -261,7 +261,42 @@ d3e0.d3exp_node of
         // nothing
       end // end of [Some]
     | None ((*none*)) => ()
-  end // end of [D2Evar/linear]
+  end // end of [D3Evar/linear]
+//
+(*
+** [--chainlam]: a var-bound pattern piece of an unannotated
+** lambda formal may still carry an unsolved (var-sorted) type
+** here, so [d2var_is_linear] (a stamp taken at binding time)
+** misses linearity that tysub has since solved in szexp.
+** Re-check the (stored-type, needed-type) pair through tysub:
+** success means the pair is consistent; stamp the linear
+** bookkeeping exactly as [p2at_trdn_var] does for a DOWN-bound
+** linear pattern var. No links are written.
+*)
+| D3Evar (d2v) when ($GLOB.the_CHAINLAM_flag_get () <> 0) =>
+  let
+    val opt = d2var_get_type (d2v)
+  in
+    ( case+ opt of
+    | Some (s2e_old) =>
+      ( if err0 = 0
+      then {
+          val () = d2var_refval_check (loc0, d2v, refval)
+          val () = if s2exp_is_lin (s2e_new)
+                then {
+                  val () = d2var_set_linval (d2v, 0)
+                  val () = d2var_set_finknd (d2v, D2VFINnone ())
+                }
+          val () = d2var_set_type (d2v, Some (s2e_new))
+          val () = d3exp_set_type (d3e0, s2e_new)
+        }
+      else (err := err + 1)
+      ) where {
+        val err0 = $SOL.s2exp_tyleq_solve (loc0, s2e_old, s2e_new)
+      }
+    | None ((*void*)) => (err := err + 1)
+    )
+  end // end of [D3Evar/chainlam-late-linearity]
 //
 (*
 | D3Evar (d2v) when d2var_get_isfix (d2v) => ()
