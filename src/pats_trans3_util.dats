@@ -13,12 +13,12 @@
 ** the terms of  the GNU GENERAL PUBLIC LICENSE (GPL) as published by the
 ** Free Software Foundation; either version 3, or (at  your  option)  any
 ** later version.
-** 
+**
 ** ATS is distributed in the hope that it will be useful, but WITHOUT ANY
 ** WARRANTY; without  even  the  implied  warranty  of MERCHANTABILITY or
 ** FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
 ** for more details.
-** 
+**
 ** You  should  have  received  a  copy of the GNU General Public License
 ** along  with  ATS;  see the  file COPYING.  If not, please write to the
 ** Free Software Foundation,  51 Franklin Street, Fifth Floor, Boston, MA
@@ -51,6 +51,11 @@ prerr_FILENAME<> () = prerr "pats_trans3_util"
 
 staload
 LOC = "./pats_location.sats"
+
+(* ****** ****** *)
+
+staload
+GLOB = "./pats_global.sats"
 
 (* ****** ****** *)
 
@@ -102,17 +107,27 @@ val s2e = d3exp_get_type (d3e)
 val () =
 (
 if
-knd > 0
-then fprint (out, "**SHOWTYPE[UP]**")
-else fprint (out, "**SHOWTYPE[DN]**")
-) (* end of [val] *)
+($GLOB.the_STD_ERROR_HEADER_get ()) <> 0
+then {
+    val () = $LOC.fprint_location_errhdr (out, loc)
+    val () = fprint_string (out, ": SHOWTYPE[")
+    val () = if knd > 0
+          then fprint_string (out, "UP")
+          else fprint_string (out, "DN")
+    val () = fprint_string (out, "]: ")
+  }
+else {
+    val () =
+          if knd > 0
+          then fprint (out, "**SHOWTYPE[UP]**")
+          else fprint (out, "**SHOWTYPE[DN]**")
+    val () = fprint (out, "(")
+    val () = $LOC.fprint_location (out, loc)
+    val () = fprint (out, ")")
+    val () = fprint (out, ": ")
+  }
+)
 //
-val () = fprint (out, "(")
-val () =
-  $LOC.fprint_location (out, loc)
-val () = fprint (out, ")")
-//
-val () = fprint (out, ": ")
 val () = fpprint_s2exp (out, s2e)
 //
 val () = fprint (out, ": ")
@@ -139,7 +154,7 @@ implement
 d2exp_funclo_of_d2exp
   (d2e0, fc0) =
   case+ d2e0.d2exp_node of
-  | D2Eann_funclo (d2e, fc) => 
+  | D2Eann_funclo (d2e, fc) =>
       let val () = fc0 := fc in d2e end
     // end of [D2Eann_funclo]
   | _ => d2e0
