@@ -16,7 +16,8 @@ ATSHOME=$(shell dirname $(shell dirname $(shell readlink $(shell which patscc)))
 ATSCC=patscc
 ATSOPT=patsopt
 #
-ATSCCFLAGS=--optflag --chainlam -O2 -DATS_MEMALLOC_LIBC -fPIC -I "../src/" -IATS "../src" ${CFLAGS}
+ATSCCFLAGS=--optflag --chainlam --optflag --std-error-header -O2 -DATS_MEMALLOC_LIBC -fPIC -I "../src/" -IATS "../src" ${CFLAGS}
+#ATSCCFLAGS=--optflag --chainlam -O2 -DATS_MEMALLOC_LIBC -fPIC -I "../src/" -IATS "../src" ${CFLAGS}
 ATSLIBS=
 # ATSCCFLAGS=-O2
 #

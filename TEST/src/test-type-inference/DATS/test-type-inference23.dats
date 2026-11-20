@@ -79,7 +79,28 @@ fn
           val () = consumeObject object
           prval () = boss_takeback boss_pf
         }
-  val value =
+  val ensure_boss_local = (( lam env =<fun1>
+             ( exceptOption000
+               ( env1
+               , lam env0 =<1> v1 where {
+                   val @( not_null | v1, object) = env0
+                   val () = consumeObject object
+                 }
+               , lam (env0, value)=> env1 where {
+                   val @(not_null | v1, object) = $showtype env0
+                   val ( boss_pf, boss_takeback | ) = $showtype value
+                   val env1 = @( not_null, boss_pf, boss_takeback | v1, object)
+                 }
+               , ovalue
+               )
+             ) where {
+               val @(not_null | v1, object) = ($showtype env)
+               prval () = not_null ()
+               val ovalue = ensure_boss( object)
+               val env1 = @(not_null | v1, object)
+            }
+          ))
+  val value:Result_vt( Option_vt(int), Option_vt(int)) =
     (
           pure 1
       >>= ( lam v =<fun1> pure( @( $showtype v, 2) ) )
@@ -115,27 +136,7 @@ fn
                val env1 = @(v1, object)
             }
           ))
-      >>= (( lam env =<fun1>
-             ( exceptOption000
-               ( env1
-               , lam env0 =<1> v1 where {
-                   val @( not_null | v1, object) = env0
-                   val () = consumeObject object
-                 }
-               , lam (env0, value)=> env1 where {
-                   val @(not_null | v1, object) = $showtype env0
-                   val ( boss_pf, boss_takeback | ) = $showtype value
-                   val env1 = @( not_null, boss_pf, boss_takeback | v1, object)
-                 }
-               , ovalue
-               )
-             ) where {
-               val @(not_null | v1, object) = ($showtype env)
-               prval () = not_null ()
-               val ovalue = ensure_boss( object)
-               val env1 = @(not_null | v1, object)
-            }
-          ))
+      >>= ensure_boss_local
       >>= clean
     )
 }
